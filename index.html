@@ -52,6 +52,17 @@
   .section-title { font-size: 13px; font-weight: 900; color: #FFD700; margin-top: 4px; padding-top: 8px; border-top: 1px solid #222; }
   .btn { padding: 10px 16px; border: none; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
   .btn-primary { background: #FFD700; color: #111; width: 100%; }
+  .btn-ai { background: #333; color: #FFD700; width: 100%; border: 1px solid #FFD700; margin-bottom: 8px; }
+  .btn-ai:hover { background: #444; }
+
+  .quote-list { display: flex; flex-direction: column; gap: 6px; }
+  .quote-card {
+    background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 10px 12px;
+    cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .quote-card:hover { border-color: #FFD700; background: #222; }
+  .quote-card-main { color: #FFD700; font-size: 14px; font-weight: 900; margin-bottom: 4px; }
+  .quote-card-sub { color: #aaa; font-size: 12px; }
 
   /* Preset buttons */
   .preset-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -151,6 +162,14 @@
         <label>對比 <span id="contrastLabel">100%</span></label>
         <input type="range" id="contrastSlider" min="50" max="200" value="100">
       </div>
+    </div>
+
+    <!-- AI Quote Generator -->
+    <div class="section-title">AI 語錄產生器</div>
+    <div>
+      <button class="btn btn-ai" id="aiGenerateBtn">🎲 隨機產生瘋大叔語錄</button>
+      <div id="aiLoading" style="display:none; text-align:center; padding:12px; color:#FFD700; font-size:13px;">思考中...</div>
+      <div id="quoteList" class="quote-list"></div>
     </div>
 
     <!-- Text Content -->
@@ -401,6 +420,66 @@
     };
     reader.readAsDataURL(file);
   }
+
+  // --- AI Quote Generator ---
+  var aiGenerateBtn = document.getElementById("aiGenerateBtn");
+  var aiLoading = document.getElementById("aiLoading");
+  var quoteList = document.getElementById("quoteList");
+
+  aiGenerateBtn.addEventListener("click", function() {
+    aiGenerateBtn.disabled = true;
+    aiLoading.style.display = "block";
+    quoteList.innerHTML = "";
+
+    var prompt = '你是「瘋大叔」，一個52歲的台灣創業者，講話直白、犀利、接地氣，帶點江湖味但有深度。請產生5組語錄，每組包含主標語（2行，每行6-10個字，衝擊力強）和副標語（2行，每行7-12個字，補充說明或反轉）。主題隨機從以下選：創業、人生、職場、金錢、人際關係、自我成長、失敗、堅持、選擇、孤獨。請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
+
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      aiLoading.style.display = "none";
+      aiGenerateBtn.disabled = false;
+      var text = "";
+      for (var c = 0; c < data.content.length; c++) {
+        if (data.content[c].type === "text") text += data.content[c].text;
+      }
+      // Clean and parse JSON
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      var quotes = JSON.parse(text);
+      for (var q = 0; q < quotes.length; q++) {
+        (function(quote) {
+          var card = document.createElement("div");
+          card.className = "quote-card";
+          var mainLines = quote.main.replace(/\\n/g, "\n").split("\n");
+          var subLines = quote.sub.replace(/\\n/g, "\n").split("\n");
+          card.innerHTML = '<div class="quote-card-main">' + mainLines.join("<br>") + '</div>' +
+                           '<div class="quote-card-sub">' + subLines.join("<br>") + '</div>';
+          card.addEventListener("click", function() {
+            mainTextEl.value = mainLines.join("\n");
+            subTextEl.value = subLines.join("\n");
+            render();
+            // Highlight selected
+            var cards = quoteList.querySelectorAll(".quote-card");
+            for (var k = 0; k < cards.length; k++) cards[k].style.borderColor = "#333";
+            card.style.borderColor = "#FFD700";
+          });
+          quoteList.appendChild(card);
+        })(quotes[q]);
+      }
+    })
+    .catch(function(err) {
+      aiLoading.style.display = "none";
+      aiGenerateBtn.disabled = false;
+      quoteList.innerHTML = '<div style="color:#ff4444;font-size:13px;padding:8px;">產生失敗，請重試。' + (err.message || '') + '</div>';
+    });
+  });
 
   // --- Bindings ---
   mainTextEl.addEventListener("input", render);
