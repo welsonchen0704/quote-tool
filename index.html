@@ -287,6 +287,7 @@
 
 <script>
 (function() {
+     var WORKER_URL = "https://quote-proxy.welson-chen.workers.dev";
   var canvas = document.getElementById("canvas");
   var ctx = canvas.getContext("2d");
   var canvasContainer = document.getElementById("canvasContainer");
@@ -433,7 +434,7 @@
 
     var prompt = '你是「瘋大叔」，一個52歲的台灣創業者，講話直白、犀利、接地氣，帶點江湖味但有深度。請產生5組語錄，每組包含主標語（2行，每行6-10個字，衝擊力強）和副標語（2行，每行7-12個字，補充說明或反轉）。主題隨機從以下選：創業、人生、職場、金錢、人際關係、自我成長、失敗、堅持、選擇、孤獨。請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
 
-    fetch("https://api.anthropic.com/v1/messages", {
+    fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -634,7 +635,7 @@
       link.href = dataUrl;
       link.click();
     } catch(e) {}
-    setTimeout(function() {
+    setTimeout(function() {    var WORKER_URL = "https://quote-proxy.welson-chen.workers.dev";
       saveArea.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 100);
   });
