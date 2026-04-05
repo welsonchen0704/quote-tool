@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="語錄圖">
+<meta name="theme-color" content="#FFD700">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>瘋大叔語錄圖產生器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
+    background: #111; color: #eee;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px;
+  }
+  h1 { font-size: 20px; font-weight: 900; color: #FFD700; margin-bottom: 4px; letter-spacing: 2px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+  .workspace { display: flex; gap: 32px; width: 100%; max-width: 1100px; flex-wrap: wrap; justify-content: center; }
+  .controls { flex: 1; min-width: 280px; max-width: 360px; display: flex; flex-direction: column; gap: 12px; }
+  label { font-size: 13px; font-weight: 700; color: #aaa; display: block; margin-bottom: 3px; letter-spacing: 1px; }
+  textarea, input[type="text"] {
+    width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+    color: #fff; font-family: inherit; font-size: 15px; padding: 10px 12px; resize: vertical;
+  }
+  textarea:focus, input[type="text"]:focus { outline: none; border-color: #FFD700; }
+  textarea { min-height: 56px; }
+  .upload-zone {
+    border: 2px dashed #333; border-radius: 10px; padding: 20px 16px;
+    text-align: center; cursor: pointer;
+  }
+  .upload-zone:hover { border-color: #FFD700; background: #1a1a1a; }
+  .upload-zone p { color: #666; font-size: 13px; pointer-events: none; }
+  .upload-zone input { display: none; }
+  .upload-zone .thumb { max-width: 100%; max-height: 100px; border-radius: 6px; margin-top: 6px; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  .color-pick { display: flex; align-items: center; gap: 6px; }
+  .color-pick input[type="color"] { width: 30px; height: 30px; border: none; background: none; cursor: pointer; border-radius: 6px; }
+  .color-pick span { font-size: 11px; color: #888; }
+  .slider-group label { display: flex; justify-content: space-between; }
+  .slider-group input[type="range"] { width: 100%; accent-color: #FFD700; margin-top: 2px; }
+  select {
+    width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+    color: #fff; font-family: inherit; font-size: 14px; padding: 7px 10px; cursor: pointer;
+  }
+  select:focus { outline: none; border-color: #FFD700; }
+  .section-title { font-size: 13px; font-weight: 900; color: #FFD700; margin-top: 4px; padding-top: 8px; border-top: 1px solid #222; }
+  .btn { padding: 10px 16px; border: none; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-primary { background: #FFD700; color: #111; width: 100%; }
+
+  /* Preset buttons */
+  .preset-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .preset-btn {
+    flex: 1; min-width: 60px; padding: 8px 4px; border: 2px solid #333; border-radius: 8px;
+    background: #1a1a1a; color: #ccc; font-family: inherit; font-size: 11px; font-weight: 700;
+    cursor: pointer; text-align: center; transition: border-color .15s;
+  }
+  .preset-btn:hover { border-color: #FFD700; }
+  .preset-btn.active { border-color: #FFD700; background: #222; }
+  .preset-swatch {
+    display: block; width: 20px; height: 20px; border-radius: 4px; margin: 0 auto 4px;
+    border: 1px solid #444;
+  }
+
+  .preview-wrap { flex: 1; min-width: 320px; max-width: 480px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .canvas-container { width: 100%; background: #1a1a1a; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #222; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .empty-state { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #444; font-size: 14px; pointer-events: none; }
+  @media (max-width: 700px) {
+    .workspace { flex-direction: column; align-items: center; }
+    .controls, .preview-wrap { max-width: 100%; min-width: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<h1>瘋大叔語錄圖產生器</h1>
+<p class="subtitle">上傳照片 → 調整構圖 → 輸入金句 → 產生語錄圖</p>
+
+<div class="workspace">
+  <div class="controls">
+
+    <!-- Presets -->
+    <div>
+      <label>快速模板</label>
+      <div class="preset-row">
+        <button class="preset-btn active" data-preset="gold" id="presetGold">
+          <span class="preset-swatch" style="background:#FFD700;"></span>經典金字
+        </button>
+        <button class="preset-btn" data-preset="white" id="presetWhite">
+          <span class="preset-swatch" style="background:#FFFFFF;"></span>白字極簡
+        </button>
+        <button class="preset-btn" data-preset="red" id="presetRed">
+          <span class="preset-swatch" style="background:#FF4444;"></span>紅字衝擊
+        </button>
+        <button class="preset-btn" data-preset="cyan" id="presetCyan">
+          <span class="preset-swatch" style="background:#00E5FF;"></span>冷光科技
+        </button>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div>
+      <label>上傳照片</label>
+      <div class="upload-zone" id="dropZone">
+        <p id="uploadText">點擊或拖曳照片到這裡</p>
+        <input type="file" id="fileInput" accept="image/*">
+      </div>
+    </div>
+
+    <!-- Size -->
+    <div>
+      <label>輸出尺寸</label>
+      <select id="sizeSelect">
+        <option value="1080x1350" selected>IG 直式 1080×1350 (4:5)</option>
+        <option value="1080x1080">IG 正方 1080×1080 (1:1)</option>
+        <option value="1080x1920">IG 限動 1080×1920 (9:16)</option>
+        <option value="1200x630">FB 貼文 1200×630</option>
+        <option value="1920x1080">橫式 1920×1080 (16:9)</option>
+      </select>
+    </div>
+
+    <!-- Image -->
+    <div class="section-title">圖片構圖</div>
+
+    <div class="slider-group">
+      <label>縮放 <span id="imgZoomLabel">100%</span></label>
+      <input type="range" id="imgZoomSlider" min="50" max="200" value="100">
+    </div>
+    <div class="row">
+      <div class="slider-group">
+        <label>水平 <span id="imgXLabel">50%</span></label>
+        <input type="range" id="imgXSlider" min="0" max="100" value="50">
+      </div>
+      <div class="slider-group">
+        <label>垂直 <span id="imgYLabel">50%</span></label>
+        <input type="range" id="imgYSlider" min="0" max="100" value="50">
+      </div>
+    </div>
+    <div class="row">
+      <div class="slider-group">
+        <label>亮度 <span id="brightnessLabel">100%</span></label>
+        <input type="range" id="brightnessSlider" min="30" max="170" value="100">
+      </div>
+      <div class="slider-group">
+        <label>對比 <span id="contrastLabel">100%</span></label>
+        <input type="range" id="contrastSlider" min="50" max="200" value="100">
+      </div>
+    </div>
+
+    <!-- Text Content -->
+    <div class="section-title">文字內容</div>
+
+    <div>
+      <label>主標語（大字）</label>
+      <textarea id="mainText">還沒夠強的時候
+說再多都是噪音</textarea>
+    </div>
+    <div>
+      <label>副標語（小字）</label>
+      <textarea id="subText">當你有足夠的能力
+沉默也都會是力量</textarea>
+    </div>
+    <div>
+      <label>署名</label>
+      <input type="text" id="authorText" value="WELSON CHEN">
+    </div>
+
+    <!-- Text Style -->
+    <div class="section-title">文字樣式</div>
+
+    <div class="row">
+      <div>
+        <label>主標顏色</label>
+        <div class="color-pick">
+          <input type="color" id="mainColor" value="#FFD700">
+          <span id="mainColorHex">#FFD700</span>
+        </div>
+      </div>
+      <div>
+        <label>副標顏色</label>
+        <div class="color-pick">
+          <input type="color" id="subColor" value="#FFFFFF">
+          <span id="subColorHex">#FFFFFF</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>文字對齊</label>
+        <select id="textAlign">
+          <option value="left" selected>靠左</option>
+          <option value="center">置中</option>
+        </select>
+      </div>
+      <div>
+        <label>署名位置</label>
+        <select id="authorPos">
+          <option value="bl" selected>左下</option>
+          <option value="br">右下</option>
+          <option value="tl">左上</option>
+          <option value="tr">右上</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="slider-group">
+        <label>主標位置 <span id="mainYLabel">70%</span></label>
+        <input type="range" id="mainYSlider" min="5" max="95" value="70">
+      </div>
+      <div class="slider-group">
+        <label>副標位置 <span id="subYLabel">85%</span></label>
+        <input type="range" id="subYSlider" min="5" max="95" value="85">
+      </div>
+    </div>
+
+    <div class="slider-group">
+      <label>遮罩深度 <span id="overlayLabel">50%</span></label>
+      <input type="range" id="overlaySlider" min="0" max="100" value="50">
+    </div>
+
+    <div class="row">
+      <div class="slider-group">
+        <label>主標大小 <span id="mainSizeLabel">64</span></label>
+        <input type="range" id="mainSizeSlider" min="32" max="120" value="64">
+      </div>
+      <div class="slider-group">
+        <label>副標大小 <span id="subSizeLabel">27</span></label>
+        <input type="range" id="subSizeSlider" min="16" max="60" value="27">
+      </div>
+    </div>
+
+    <div class="slider-group">
+      <label>文字描邊 <span id="strokeLabel">0</span></label>
+      <input type="range" id="strokeSlider" min="0" max="8" value="0">
+    </div>
+
+    <!-- Output -->
+    <div class="section-title">輸出</div>
+    <div>
+      <label>檔案名稱</label>
+      <input type="text" id="fileName" value="瘋大叔語錄" placeholder="輸入檔名">
+    </div>
+
+    <button class="btn btn-primary" id="generateBtn">產生圖片</button>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-wrap">
+    <label style="align-self:flex-start">即時預覽</label>
+    <div class="canvas-container" id="canvasContainer">
+      <canvas id="canvas"></canvas>
+      <div class="empty-state" id="emptyState">請先上傳照片</div>
+    </div>
+    <div id="saveArea" style="display:none; width:100%; text-align:center;">
+      <p style="color:#FFD700; font-size:14px; font-weight:700; margin-bottom:8px;">⬇ 長按下方圖片儲存到相簿</p>
+      <img id="outputImg" style="width:100%; border-radius:8px; border:1px solid #333;" />
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+  var canvasContainer = document.getElementById("canvasContainer");
+  var W = 1080, H = 1350;
+  canvas.width = W; canvas.height = H;
+
+  var uploadedImg = null;
+  var FONT = '"PingFang TC","Microsoft JhengHei","Heiti TC",sans-serif';
+
+  // --- Presets ---
+  var PRESETS = {
+    gold:  { mainColor: "#FFD700", subColor: "#FFFFFF", overlay: 50, stroke: 0, mainSize: 64, subSize: 27 },
+    white: { mainColor: "#FFFFFF", subColor: "#CCCCCC", overlay: 60, stroke: 2, mainSize: 60, subSize: 25 },
+    red:   { mainColor: "#FF4444", subColor: "#FFFFFF", overlay: 55, stroke: 3, mainSize: 68, subSize: 28 },
+    cyan:  { mainColor: "#00E5FF", subColor: "#E0E0E0", overlay: 65, stroke: 2, mainSize: 62, subSize: 26 }
+  };
+
+  // --- Elements ---
+  var dropZone = document.getElementById("dropZone");
+  var fileInput = document.getElementById("fileInput");
+  var uploadText = document.getElementById("uploadText");
+  var emptyState = document.getElementById("emptyState");
+  var sizeSelect = document.getElementById("sizeSelect");
+
+  var imgZoomSlider = document.getElementById("imgZoomSlider");
+  var imgZoomLabel = document.getElementById("imgZoomLabel");
+  var imgXSlider = document.getElementById("imgXSlider");
+  var imgXLabel = document.getElementById("imgXLabel");
+  var imgYSlider = document.getElementById("imgYSlider");
+  var imgYLabel = document.getElementById("imgYLabel");
+  var brightnessSlider = document.getElementById("brightnessSlider");
+  var brightnessLabel = document.getElementById("brightnessLabel");
+  var contrastSlider = document.getElementById("contrastSlider");
+  var contrastLabel = document.getElementById("contrastLabel");
+
+  var mainTextEl = document.getElementById("mainText");
+  var subTextEl = document.getElementById("subText");
+  var authorTextEl = document.getElementById("authorText");
+  var mainColorEl = document.getElementById("mainColor");
+  var subColorEl = document.getElementById("subColor");
+  var mainColorHex = document.getElementById("mainColorHex");
+  var subColorHex = document.getElementById("subColorHex");
+  var textAlignEl = document.getElementById("textAlign");
+  var authorPosEl = document.getElementById("authorPos");
+  var mainYSlider = document.getElementById("mainYSlider");
+  var mainYLabel = document.getElementById("mainYLabel");
+  var subYSlider = document.getElementById("subYSlider");
+  var subYLabel = document.getElementById("subYLabel");
+  var overlaySlider = document.getElementById("overlaySlider");
+  var overlayLabel = document.getElementById("overlayLabel");
+  var mainSizeSlider = document.getElementById("mainSizeSlider");
+  var mainSizeLabel = document.getElementById("mainSizeLabel");
+  var subSizeSlider = document.getElementById("subSizeSlider");
+  var subSizeLabel = document.getElementById("subSizeLabel");
+  var strokeSlider = document.getElementById("strokeSlider");
+  var strokeLabel = document.getElementById("strokeLabel");
+  var fileNameEl = document.getElementById("fileName");
+
+  var generateBtn = document.getElementById("generateBtn");
+  var saveArea = document.getElementById("saveArea");
+  var outputImg = document.getElementById("outputImg");
+
+  // --- Preset handling ---
+  var presetBtns = document.querySelectorAll(".preset-btn");
+  for (var p = 0; p < presetBtns.length; p++) {
+    presetBtns[p].addEventListener("click", function() {
+      var key = this.getAttribute("data-preset");
+      var pr = PRESETS[key];
+      if (!pr) return;
+      // Update controls
+      mainColorEl.value = pr.mainColor; mainColorHex.textContent = pr.mainColor;
+      subColorEl.value = pr.subColor; subColorHex.textContent = pr.subColor;
+      overlaySlider.value = pr.overlay; overlayLabel.textContent = pr.overlay + "%";
+      strokeSlider.value = pr.stroke; strokeLabel.textContent = pr.stroke;
+      mainSizeSlider.value = pr.mainSize; mainSizeLabel.textContent = pr.mainSize;
+      subSizeSlider.value = pr.subSize; subSizeLabel.textContent = pr.subSize;
+      // Active state
+      for (var b = 0; b < presetBtns.length; b++) presetBtns[b].classList.remove("active");
+      this.classList.add("active");
+      render();
+    });
+  }
+
+  // --- Size ---
+  function applySize() {
+    var parts = sizeSelect.value.split("x");
+    W = parseInt(parts[0]); H = parseInt(parts[1]);
+    canvas.width = W; canvas.height = H;
+    canvasContainer.style.aspectRatio = W + "/" + H;
+    render();
+  }
+  sizeSelect.addEventListener("change", applySize);
+  applySize();
+
+  // --- Upload (keeps text/style settings) ---
+  dropZone.addEventListener("click", function() { fileInput.click(); });
+  dropZone.addEventListener("dragover", function(e) { e.preventDefault(); });
+  dropZone.addEventListener("drop", function(e) {
+    e.preventDefault();
+    if (e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", function(e) {
+    if (e.target.files[0]) loadImage(e.target.files[0]);
+  });
+
+  function loadImage(file) {
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var img = new Image();
+      img.onload = function() {
+        uploadedImg = img;
+        emptyState.style.display = "none";
+        var old = dropZone.querySelector(".thumb");
+        if (old) old.remove();
+        var thumb = document.createElement("img");
+        thumb.src = ev.target.result;
+        thumb.className = "thumb";
+        dropZone.appendChild(thumb);
+        uploadText.textContent = "點擊更換照片";
+        // Only reset image position, NOT text settings
+        imgZoomSlider.value = 100; imgZoomLabel.textContent = "100%";
+        imgXSlider.value = 50; imgXLabel.textContent = "50%";
+        imgYSlider.value = 50; imgYLabel.textContent = "50%";
+        brightnessSlider.value = 100; brightnessLabel.textContent = "100%";
+        contrastSlider.value = 100; contrastLabel.textContent = "100%";
+        // Hide previous output
+        saveArea.style.display = "none";
+        render();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // --- Bindings ---
+  mainTextEl.addEventListener("input", render);
+  subTextEl.addEventListener("input", render);
+  authorTextEl.addEventListener("input", render);
+  textAlignEl.addEventListener("change", render);
+  authorPosEl.addEventListener("change", render);
+
+  mainColorEl.addEventListener("input", function() { mainColorHex.textContent = mainColorEl.value.toUpperCase(); render(); });
+  subColorEl.addEventListener("input", function() { subColorHex.textContent = subColorEl.value.toUpperCase(); render(); });
+
+  imgZoomSlider.addEventListener("input", function() { imgZoomLabel.textContent = imgZoomSlider.value + "%"; render(); });
+  imgXSlider.addEventListener("input", function() { imgXLabel.textContent = imgXSlider.value + "%"; render(); });
+  imgYSlider.addEventListener("input", function() { imgYLabel.textContent = imgYSlider.value + "%"; render(); });
+  brightnessSlider.addEventListener("input", function() { brightnessLabel.textContent = brightnessSlider.value + "%"; render(); });
+  contrastSlider.addEventListener("input", function() { contrastLabel.textContent = contrastSlider.value + "%"; render(); });
+
+  mainYSlider.addEventListener("input", function() { mainYLabel.textContent = mainYSlider.value + "%"; render(); });
+  subYSlider.addEventListener("input", function() { subYLabel.textContent = subYSlider.value + "%"; render(); });
+  overlaySlider.addEventListener("input", function() { overlayLabel.textContent = overlaySlider.value + "%"; render(); });
+  mainSizeSlider.addEventListener("input", function() { mainSizeLabel.textContent = mainSizeSlider.value; render(); });
+  subSizeSlider.addEventListener("input", function() { subSizeLabel.textContent = subSizeSlider.value; render(); });
+  strokeSlider.addEventListener("input", function() { strokeLabel.textContent = strokeSlider.value; render(); });
+
+  // --- Render ---
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Apply brightness/contrast filter
+    var brightness = parseInt(brightnessSlider.value) / 100;
+    var contrast = parseInt(contrastSlider.value) / 100;
+    ctx.filter = "brightness(" + brightness + ") contrast(" + contrast + ")";
+
+    // Background image
+    if (uploadedImg) {
+      var zoom = parseInt(imgZoomSlider.value) / 100;
+      var panX = parseInt(imgXSlider.value) / 100;
+      var panY = parseInt(imgYSlider.value) / 100;
+
+      var imgR = uploadedImg.width / uploadedImg.height;
+      var canR = W / H;
+      var drawW, drawH;
+      if (imgR > canR) {
+        drawH = H; drawW = H * imgR;
+      } else {
+        drawW = W; drawH = W / imgR;
+      }
+      drawW *= zoom; drawH *= zoom;
+      var drawX = (W - drawW) * panX;
+      var drawY = (H - drawH) * panY;
+      ctx.drawImage(uploadedImg, 0, 0, uploadedImg.width, uploadedImg.height, drawX, drawY, drawW, drawH);
+    } else {
+      ctx.fillStyle = "#222";
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Reset filter for overlay and text
+    ctx.filter = "none";
+
+    // Gradient overlay
+    var opacity = parseInt(overlaySlider.value) / 100;
+    var grad = ctx.createLinearGradient(0, H * 0.3, 0, H);
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(0.5, "rgba(0,0,0," + (opacity * 0.4) + ")");
+    grad.addColorStop(1, "rgba(0,0,0," + opacity + ")");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Text config
+    var mSize = parseInt(mainSizeSlider.value);
+    var sSize = parseInt(subSizeSlider.value);
+    var aSize = Math.max(18, Math.round(mSize * 0.3));
+    var pad = 60;
+    var align = textAlignEl.value;
+    var xPos = (align === "center") ? W / 2 : pad;
+    var strokeW = parseInt(strokeSlider.value);
+
+    var mLines = mainTextEl.value.split("\n");
+    var sLines = subTextEl.value.split("\n");
+    var author = authorTextEl.value.trim();
+    var mLineH = mSize * 1.3;
+    var sLineH = sSize * 1.5;
+
+    ctx.textAlign = (align === "center") ? "center" : "left";
+    ctx.shadowColor = "rgba(0,0,0,0.7)";
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    // Helper: draw text with optional stroke
+    function drawText(text, x, y, color, font, sw) {
+      ctx.font = font;
+      if (sw > 0) {
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = sw * 2;
+        ctx.lineJoin = "round";
+        ctx.strokeText(text, x, y);
+      }
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+    }
+
+    // Main text
+    var mainY = (parseInt(mainYSlider.value) / 100) * H;
+    var mainFont = "900 " + mSize + "px " + FONT;
+    for (var i = 0; i < mLines.length; i++) {
+      if (mLines[i].trim()) {
+        drawText(mLines[i], xPos, mainY + i * mLineH, mainColorEl.value, mainFont, strokeW);
+      }
+    }
+
+    // Sub text
+    var subY = (parseInt(subYSlider.value) / 100) * H;
+    var subFont = "400 " + sSize + "px " + FONT;
+    ctx.shadowBlur = 6;
+    for (var j = 0; j < sLines.length; j++) {
+      if (sLines[j].trim()) {
+        drawText(sLines[j], xPos, subY + j * sLineH, subColorEl.value, subFont, Math.max(0, strokeW - 1));
+      }
+    }
+
+    // Author
+    if (author) {
+      var aPos = authorPosEl.value;
+      var ax, ay;
+      if (aPos === "bl") { ax = pad; ay = H - pad; ctx.textAlign = "left"; }
+      else if (aPos === "br") { ax = W - pad; ay = H - pad; ctx.textAlign = "right"; }
+      else if (aPos === "tl") { ax = pad; ay = pad + aSize; ctx.textAlign = "left"; }
+      else { ax = W - pad; ay = pad + aSize; ctx.textAlign = "right"; }
+
+      ctx.shadowBlur = 4;
+      drawText(author, ax, ay, "#FFFFFF", "400 " + aSize + "px " + FONT, 0);
+    }
+
+    // Reset
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+  }
+
+  // --- Generate ---
+  generateBtn.addEventListener("click", function() {
+    if (!uploadedImg) { alert("請先上傳照片"); return; }
+    var dataUrl = canvas.toDataURL("image/png");
+    outputImg.src = dataUrl;
+    saveArea.style.display = "block";
+    var fn = fileNameEl.value.trim() || "瘋大叔語錄";
+    try {
+      var link = document.createElement("a");
+      link.download = fn + "_" + Date.now() + ".png";
+      link.href = dataUrl;
+      link.click();
+    } catch(e) {}
+    setTimeout(function() {
+      saveArea.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
