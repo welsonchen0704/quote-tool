@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="語錄圖">
-<meta name="theme-color" content="#0066FF">
+<meta name="theme-color" content="#4D94FF">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,23 +15,23 @@
 <title>瘋大叔語錄圖產生器</title>
 <style>
   :root {
-    --bg:         #080809;
-    --bg-panel:   #0e0f11;
-    --bg-card:    #13151a;
-    --bg-input:   #0b0c0f;
-    --border:     #1e2028;
-    --border-hi:  #2a2d38;
-    --blue:       #0066FF;
-    --blue-dim:   #0052CC;
-    --blue-glow:  rgba(0,102,255,0.2);
-    --blue-pale:  rgba(0,102,255,0.08);
-    --cyan:       #00D4FF;
-    --orange:     #FF6B00;
-    --red:        #FF3344;
-    --green:      #00E676;
-    --text-hi:    #F0F2F8;
-    --text-mid:   #7A8099;
-    --text-dim:   #3A3D4A;
+    --bg:         #1A1C22;
+    --bg-panel:   #22252E;
+    --bg-card:    #2A2D38;
+    --bg-input:   #1E2029;
+    --border:     #383C4E;
+    --border-hi:  #4A4F66;
+    --blue:       #4D94FF;
+    --blue-dim:   #3380FF;
+    --blue-glow:  rgba(77,148,255,0.25);
+    --blue-pale:  rgba(77,148,255,0.12);
+    --cyan:       #33DDFF;
+    --orange:     #FF8533;
+    --red:        #FF5566;
+    --green:      #33EE88;
+    --text-hi:    #F5F7FF;
+    --text-mid:   #9BA3C0;
+    --text-dim:   #5C6380;
     --font-head:  'Barlow Condensed', sans-serif;
     --font-body:  'Noto Sans TC', sans-serif;
   }
@@ -54,8 +54,8 @@
     position: fixed;
     inset: 0;
     background-image:
-      linear-gradient(rgba(0,102,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,102,255,0.03) 1px, transparent 1px);
+      linear-gradient(rgba(77,148,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(77,148,255,0.04) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
     z-index: 0;
@@ -72,152 +72,86 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(8,8,9,0.9);
+    background: rgba(26,28,34,0.95);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
   }
 
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
 
   .header-badge {
     font-family: var(--font-head);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    color: var(--blue);
-    background: var(--blue-pale);
-    border: 1px solid rgba(0,102,255,0.25);
-    padding: 3px 8px;
-    border-radius: 2px;
-    text-transform: uppercase;
+    font-size: 11px; font-weight: 700; letter-spacing: 3px;
+    color: var(--blue); background: var(--blue-pale);
+    border: 1px solid rgba(77,148,255,0.3);
+    padding: 3px 8px; border-radius: 2px; text-transform: uppercase;
   }
 
   h1 {
-    font-family: var(--font-head);
-    font-size: 20px;
-    font-weight: 900;
-    color: var(--text-hi);
-    letter-spacing: 4px;
-    text-transform: uppercase;
+    font-family: var(--font-head); font-size: 20px; font-weight: 900;
+    color: var(--text-hi); letter-spacing: 4px; text-transform: uppercase;
   }
 
   .header-right {
-    font-family: var(--font-head);
-    font-size: 11px;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-    text-transform: uppercase;
+    font-family: var(--font-head); font-size: 11px;
+    color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase;
   }
 
   .workspace {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    width: 100%;
-    max-width: 1200px;
-    padding: 24px 24px 0;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 20px;
+    position: relative; z-index: 1;
+    display: flex; width: 100%; max-width: 1200px;
+    padding: 24px 24px 0; flex-wrap: wrap; justify-content: center; gap: 20px;
   }
 
   .controls {
-    flex: 1;
-    min-width: 280px;
-    max-width: 360px;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    height: fit-content;
+    flex: 1; min-width: 280px; max-width: 360px;
+    display: flex; flex-direction: column; gap: 1px; height: fit-content;
   }
 
   .panel-section {
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    padding: 14px 16px;
-    margin-bottom: 1px;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    padding: 14px 16px; margin-bottom: 1px;
   }
   .panel-section:first-child { border-radius: 4px 4px 0 0; }
   .panel-section:last-child { border-radius: 0 0 4px 4px; margin-bottom: 0; }
 
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 
   .section-title {
-    font-family: var(--font-head);
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-dim);
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    flex: 1;
+    font-family: var(--font-head); font-size: 11px; font-weight: 700;
+    color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; flex: 1;
   }
+
   .section-tag {
-    font-family: var(--font-head);
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    padding: 2px 6px;
-    border-radius: 2px;
-    text-transform: uppercase;
+    font-family: var(--font-head); font-size: 9px; font-weight: 700;
+    letter-spacing: 1.5px; padding: 2px 6px; border-radius: 2px; text-transform: uppercase;
   }
-  .tag-blue { color: var(--blue); background: var(--blue-pale); border: 1px solid rgba(0,102,255,0.2); }
-  .tag-orange { color: var(--orange); background: rgba(255,107,0,0.06); border: 1px solid rgba(255,107,0,0.2); }
+  .tag-blue { color: var(--blue); background: var(--blue-pale); border: 1px solid rgba(77,148,255,0.25); }
+  .tag-orange { color: var(--orange); background: rgba(255,133,51,0.08); border: 1px solid rgba(255,133,51,0.25); }
 
   label {
-    font-size: 10px;
-    font-weight: 500;
-    color: var(--text-mid);
-    display: block;
-    margin-bottom: 5px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    font-family: var(--font-head);
+    font-size: 10px; font-weight: 500; color: var(--text-mid);
+    display: block; margin-bottom: 5px; letter-spacing: 1px;
+    text-transform: uppercase; font-family: var(--font-head);
   }
 
   textarea, input[type="text"] {
-    width: 100%;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text-hi);
-    font-family: var(--font-body);
-    font-size: 14px;
-    font-weight: 400;
-    padding: 9px 11px;
-    resize: vertical;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    line-height: 1.6;
+    width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: 3px; color: var(--text-hi); font-family: var(--font-body);
+    font-size: 14px; font-weight: 400; padding: 9px 11px; resize: vertical;
+    transition: border-color 0.15s, box-shadow 0.15s; line-height: 1.6;
   }
   textarea { min-height: 52px; }
   textarea:focus, input[type="text"]:focus {
-    outline: none;
-    border-color: var(--blue);
-    box-shadow: 0 0 0 2px var(--blue-glow);
+    outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-glow);
   }
 
   select {
-    width: 100%;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text-hi);
-    font-family: var(--font-body);
-    font-size: 13px;
-    padding: 8px 32px 8px 10px;
-    cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%233A3D4A' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 11px center;
+    width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: 3px; color: var(--text-hi); font-family: var(--font-body);
+    font-size: 13px; padding: 8px 32px 8px 10px; cursor: pointer; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%235C6380' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 11px center;
     transition: border-color 0.15s;
   }
   select:focus { outline: none; border-color: var(--blue); }
@@ -226,391 +160,152 @@
   .row > div { flex: 1; min-width: 0; }
 
   .slider-group { display: flex; flex-direction: column; gap: 5px; }
-  .slider-label-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+  .slider-label-row { display: flex; justify-content: space-between; align-items: center; }
   .slider-label-row label { margin-bottom: 0; }
   .slider-val {
-    font-family: var(--font-head);
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--blue);
-    min-width: 30px;
-    text-align: right;
+    font-family: var(--font-head); font-size: 11px; font-weight: 700;
+    color: var(--blue); min-width: 30px; text-align: right;
   }
 
   input[type="range"] {
-    width: 100%;
-    height: 2px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: var(--border-hi);
-    border-radius: 1px;
-    cursor: pointer;
+    width: 100%; height: 2px; -webkit-appearance: none; appearance: none;
+    background: var(--border-hi); border-radius: 1px; cursor: pointer;
   }
   input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 12px; height: 12px;
-    border-radius: 2px;
-    background: var(--blue);
-    cursor: pointer;
-    transition: transform 0.1s, box-shadow 0.1s;
+    -webkit-appearance: none; width: 12px; height: 12px; border-radius: 2px;
+    background: var(--blue); cursor: pointer; transition: transform 0.1s, box-shadow 0.1s;
   }
   input[type="range"]::-webkit-slider-thumb:hover {
-    transform: scale(1.3);
-    box-shadow: 0 0 10px var(--blue-glow);
+    transform: scale(1.3); box-shadow: 0 0 10px var(--blue-glow);
   }
   input[type="range"]::-moz-range-thumb {
-    width: 12px; height: 12px;
-    border-radius: 2px;
-    background: var(--blue);
-    border: none;
-    cursor: pointer;
+    width: 12px; height: 12px; border-radius: 2px; background: var(--blue); border: none; cursor: pointer;
   }
 
   .color-pick {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 6px 10px;
-    cursor: pointer;
-    transition: border-color 0.15s;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: 3px; padding: 6px 10px; cursor: pointer; transition: border-color 0.15s;
   }
   .color-pick:hover { border-color: var(--border-hi); }
   .color-pick input[type="color"] {
-    width: 20px; height: 20px;
-    border: none; background: none;
-    cursor: pointer; border-radius: 2px; padding: 0;
+    width: 20px; height: 20px; border: none; background: none; cursor: pointer; border-radius: 2px; padding: 0;
   }
   .color-hex { font-size: 11px; color: var(--text-mid); font-family: monospace; }
 
   .upload-zone {
-    border: 1px dashed var(--border-hi);
-    border-radius: 3px;
-    padding: 16px 12px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    border: 1px dashed var(--border-hi); border-radius: 3px; padding: 16px 12px;
+    text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s;
   }
-  .upload-zone:hover {
-    border-color: var(--blue);
-    background: var(--blue-pale);
-  }
+  .upload-zone:hover { border-color: var(--blue); background: var(--blue-pale); }
   .upload-zone input { display: none; }
   .upload-zone p { color: var(--text-dim); font-size: 12px; font-family: var(--font-head); letter-spacing: 1px; text-transform: uppercase; }
   .upload-zone .thumb { max-width: 100%; max-height: 80px; border-radius: 2px; margin-top: 8px; }
 
   .preset-row { display: flex; gap: 5px; }
   .preset-btn {
-    flex: 1;
-    padding: 7px 4px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: var(--bg-card);
-    color: var(--text-dim);
-    font-family: var(--font-head);
-    font-size: 10px;
-    font-weight: 700;
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.15s;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    flex: 1; padding: 7px 4px; border: 1px solid var(--border); border-radius: 3px;
+    background: var(--bg-card); color: var(--text-dim); font-family: var(--font-head);
+    font-size: 10px; font-weight: 700; cursor: pointer; text-align: center;
+    transition: all 0.15s; letter-spacing: 0.5px; text-transform: uppercase;
   }
   .preset-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-pale); }
   .preset-btn.active { border-color: var(--blue); background: var(--blue-pale); color: var(--blue); }
-  .preset-swatch {
-    display: block;
-    width: 16px; height: 16px;
-    border-radius: 2px;
-    margin: 0 auto 4px;
-  }
+  .preset-swatch { display: block; width: 16px; height: 16px; border-radius: 2px; margin: 0 auto 4px; }
 
   .btn-ai {
-    width: 100%;
-    padding: 9px 14px;
-    border-radius: 3px;
-    font-family: var(--font-head);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    border: 1px solid;
+    width: 100%; padding: 9px 14px; border-radius: 3px; font-family: var(--font-head);
+    font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid;
   }
-  .btn-ai-blue {
-    background: var(--blue-pale);
-    border-color: rgba(0,102,255,0.3);
-    color: var(--blue);
-  }
-  .btn-ai-blue:hover {
-    background: rgba(0,102,255,0.14);
-    border-color: var(--blue);
-    box-shadow: 0 0 20px var(--blue-glow);
-  }
-  .btn-ai-cyan {
-    background: rgba(0,212,255,0.05);
-    border-color: rgba(0,212,255,0.25);
-    color: var(--cyan);
-  }
-  .btn-ai-cyan:hover {
-    background: rgba(0,212,255,0.1);
-    border-color: var(--cyan);
-    box-shadow: 0 0 20px rgba(0,212,255,0.15);
-  }
-  .btn-ai-orange {
-    background: rgba(255,107,0,0.05);
-    border-color: rgba(255,107,0,0.25);
-    color: var(--orange);
-  }
-  .btn-ai-orange:hover {
-    background: rgba(255,107,0,0.1);
-    border-color: var(--orange);
-    box-shadow: 0 0 20px rgba(255,107,0,0.15);
-  }
+  .btn-ai-blue { background: var(--blue-pale); border-color: rgba(77,148,255,0.35); color: var(--blue); }
+  .btn-ai-blue:hover { background: rgba(77,148,255,0.18); border-color: var(--blue); box-shadow: 0 0 20px var(--blue-glow); }
+  .btn-ai-cyan { background: rgba(51,221,255,0.07); border-color: rgba(51,221,255,0.3); color: var(--cyan); }
+  .btn-ai-cyan:hover { background: rgba(51,221,255,0.13); border-color: var(--cyan); box-shadow: 0 0 20px rgba(51,221,255,0.18); }
+  .btn-ai-orange { background: rgba(255,133,51,0.07); border-color: rgba(255,133,51,0.3); color: var(--orange); }
+  .btn-ai-orange:hover { background: rgba(255,133,51,0.13); border-color: var(--orange); box-shadow: 0 0 20px rgba(255,133,51,0.18); }
   .btn-ai:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none !important; }
 
   .btn-generate {
-    width: 100%;
-    padding: 12px 16px;
-    border-radius: 3px;
-    font-family: var(--font-head);
-    font-size: 16px;
-    font-weight: 900;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    background: var(--blue);
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    transition: all 0.15s;
-    position: relative;
-    overflow: hidden;
+    width: 100%; padding: 12px 16px; border-radius: 3px; font-family: var(--font-head);
+    font-size: 16px; font-weight: 900; letter-spacing: 4px; text-transform: uppercase;
+    background: var(--blue); color: #fff; border: none; cursor: pointer;
+    transition: all 0.15s; position: relative; overflow: hidden;
   }
   .btn-generate::before {
-    content: '';
-    position: absolute;
-    top: 0; left: -100%;
-    width: 60%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-    transition: left 0.5s;
+    content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); transition: left 0.5s;
   }
   .btn-generate:hover::before { left: 150%; }
-  .btn-generate:hover {
-    background: var(--blue-dim);
-    box-shadow: 0 0 30px var(--blue-glow), 0 4px 16px rgba(0,102,255,0.4);
-    transform: translateY(-1px);
-  }
+  .btn-generate:hover { background: var(--blue-dim); box-shadow: 0 0 30px var(--blue-glow); transform: translateY(-1px); }
   .btn-generate:active { transform: translateY(0); }
 
   .ai-loading {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px;
-    font-family: var(--font-head);
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
+    display: none; align-items: center; justify-content: center; gap: 6px; padding: 10px;
+    font-family: var(--font-head); font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
   }
-  .ld-bar {
-    width: 3px; height: 14px;
-    border-radius: 1px;
-    animation: bar-pulse 1s ease-in-out infinite;
-  }
+  .ld-bar { width: 3px; height: 14px; border-radius: 1px; animation: bar-pulse 1s ease-in-out infinite; }
   .ld-bar:nth-child(2) { animation-delay: 0.15s; }
   .ld-bar:nth-child(3) { animation-delay: 0.3s; }
   .ld-bar:nth-child(4) { animation-delay: 0.45s; }
-  @keyframes bar-pulse {
-    0%, 100% { transform: scaleY(0.4); opacity: 0.3; }
-    50% { transform: scaleY(1); opacity: 1; }
-  }
+  @keyframes bar-pulse { 0%, 100% { transform: scaleY(0.4); opacity: 0.3; } 50% { transform: scaleY(1); opacity: 1; } }
 
   .quote-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
   .quote-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-left: 2px solid var(--border);
-    border-radius: 2px;
-    padding: 10px 12px;
-    cursor: pointer;
-    transition: all 0.12s;
+    background: var(--bg-card); border: 1px solid var(--border); border-left: 2px solid var(--border);
+    border-radius: 2px; padding: 10px 12px; cursor: pointer; transition: all 0.12s;
   }
-  .quote-card:hover {
-    border-color: var(--border-hi);
-    border-left-color: var(--blue);
-    background: rgba(0,102,255,0.04);
-  }
-  .quote-card-main {
-    color: var(--blue);
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 4px;
-    line-height: 1.5;
-    font-family: var(--font-head);
-    letter-spacing: 0.5px;
-  }
+  .quote-card:hover { border-color: var(--border-hi); border-left-color: var(--blue); background: rgba(77,148,255,0.05); }
+  .quote-card-main { color: var(--blue); font-size: 13px; font-weight: 700; margin-bottom: 4px; line-height: 1.5; font-family: var(--font-head); letter-spacing: 0.5px; }
   .quote-card-sub { color: var(--text-mid); font-size: 11px; line-height: 1.6; }
 
   .gap { height: 8px; }
 
+  /* Preview — sticky on desktop only */
   .preview-wrap {
-    flex: 1;
-    min-width: 300px;
-    max-width: 460px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    position: sticky;
-    top: 76px;
-    height: fit-content;
+    flex: 1; min-width: 300px; max-width: 460px;
+    display: flex; flex-direction: column; gap: 12px; height: fit-content;
+  }
+  @media (min-width: 721px) {
+    .preview-wrap { position: sticky; top: 76px; }
   }
 
-  .preview-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .preview-label {
-    font-family: var(--font-head);
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-dim);
-    letter-spacing: 3px;
-    text-transform: uppercase;
-  }
+  .preview-header { display: flex; align-items: center; gap: 12px; }
+  .preview-label { font-family: var(--font-head); font-size: 11px; font-weight: 700; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
   .preview-line { flex: 1; height: 1px; background: var(--border); }
   .preview-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--blue);
-    box-shadow: 0 0 8px var(--blue);
-    animation: blink 2s ease-in-out infinite;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--blue);
+    box-shadow: 0 0 8px var(--blue); animation: blink 2s ease-in-out infinite;
   }
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
   .canvas-container {
-    width: 100%;
-    background: var(--bg-card);
-    border-radius: 4px;
-    overflow: hidden;
-    position: relative;
-    border: 1px solid var(--border);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,102,255,0.06);
+    width: 100%; background: var(--bg-card); border-radius: 4px; overflow: hidden;
+    position: relative; border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(77,148,255,0.07);
   }
   canvas { width: 100%; height: 100%; display: block; }
   .empty-state {
-    position: absolute; inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-dim);
-    font-size: 11px;
-    pointer-events: none;
-    gap: 12px;
-    font-family: var(--font-head);
-    letter-spacing: 3px;
-    text-transform: uppercase;
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; color: var(--text-dim);
+    font-size: 11px; pointer-events: none; gap: 12px;
+    font-family: var(--font-head); letter-spacing: 3px; text-transform: uppercase;
   }
-  .empty-cross {
-    position: relative;
-    width: 32px; height: 32px;
-    opacity: 0.25;
-  }
-  .empty-cross::before, .empty-cross::after {
-    content: '';
-    position: absolute;
-    background: var(--text-dim);
-    border-radius: 1px;
-  }
+  .empty-cross { position: relative; width: 32px; height: 32px; opacity: 0.2; }
+  .empty-cross::before, .empty-cross::after { content: ''; position: absolute; background: var(--text-dim); border-radius: 1px; }
   .empty-cross::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
   .empty-cross::after { height: 2px; width: 100%; top: 50%; transform: translateY(-50%); }
 
-  .save-area {
-    display: none;
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 14px;
-  }
-  .save-hint {
-    font-family: var(--font-head);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--blue);
-    text-align: center;
-    margin-bottom: 10px;
-  }
+  .save-area { display: none; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 4px; padding: 14px; }
+  .save-hint { font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--blue); text-align: center; margin-bottom: 10px; }
   #outputImg { width: 100%; border-radius: 2px; border: 1px solid var(--border); }
 
-  .post-result-wrap {
-    display: none;
-    background: var(--bg-panel);
-    border: 1px solid rgba(255,107,0,0.2);
-    border-left: 2px solid var(--orange);
-    border-radius: 3px;
-    padding: 12px 14px;
-    margin-top: 8px;
-  }
-  .post-result-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  .post-result-label {
-    font-family: var(--font-head);
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--orange);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-  .btn-copy {
-    padding: 5px 10px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    border-radius: 2px;
-    background: rgba(255,107,0,0.08);
-    border: 1px solid rgba(255,107,0,0.3);
-    color: var(--orange);
-    cursor: pointer;
-    font-family: var(--font-head);
-    transition: all 0.15s;
-  }
-  .btn-copy:hover { background: rgba(255,107,0,0.15); }
-  .post-content {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    padding: 12px;
-    color: var(--text-hi);
-    font-size: 13px;
-    line-height: 1.9;
-    white-space: pre-wrap;
-    max-height: 360px;
-    overflow-y: auto;
-  }
+  .post-result-wrap { display: none; background: var(--bg-panel); border: 1px solid rgba(255,133,51,0.25); border-left: 2px solid var(--orange); border-radius: 3px; padding: 12px 14px; margin-top: 8px; }
+  .post-result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .post-result-label { font-family: var(--font-head); font-size: 10px; font-weight: 700; color: var(--orange); letter-spacing: 2px; text-transform: uppercase; }
+  .btn-copy { padding: 5px 10px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; border-radius: 2px; background: rgba(255,133,51,0.1); border: 1px solid rgba(255,133,51,0.35); color: var(--orange); cursor: pointer; font-family: var(--font-head); transition: all 0.15s; }
+  .btn-copy:hover { background: rgba(255,133,51,0.18); }
+  .post-content { background: var(--bg-input); border: 1px solid var(--border); border-radius: 2px; padding: 12px; color: var(--text-hi); font-size: 13px; line-height: 1.9; white-space: pre-wrap; max-height: 360px; overflow-y: auto; }
   .post-content::-webkit-scrollbar { width: 3px; }
   .post-content::-webkit-scrollbar-thumb { background: var(--border-hi); }
 
@@ -618,7 +313,6 @@
     .site-header { padding: 0 16px; }
     .workspace { padding: 14px 12px 0; gap: 14px; }
     .controls, .preview-wrap { max-width: 100%; min-width: 0; width: 100%; }
-    .preview-wrap { position: static; }
     h1 { font-size: 15px; letter-spacing: 2px; }
   }
 </style>
@@ -630,37 +324,24 @@
     <span class="header-badge">瘋大叔</span>
     <h1>語錄圖產生器</h1>
   </div>
-  <div class="header-right">v2.0 Urban</div>
+  <div class="header-right">v2.1</div>
 </header>
 
 <div class="workspace">
-
   <div class="controls">
 
     <div class="panel-section">
-      <div class="section-header">
-        <span class="section-title">快速模板</span>
-      </div>
+      <div class="section-header"><span class="section-title">快速模板</span></div>
       <div class="preset-row">
-        <button class="preset-btn active" data-preset="gold">
-          <span class="preset-swatch" style="background:#FFD700;"></span>金字
-        </button>
-        <button class="preset-btn" data-preset="white">
-          <span class="preset-swatch" style="background:#FFFFFF;"></span>白字
-        </button>
-        <button class="preset-btn" data-preset="red">
-          <span class="preset-swatch" style="background:#FF3344;"></span>紅字
-        </button>
-        <button class="preset-btn" data-preset="cyan">
-          <span class="preset-swatch" style="background:#00D4FF;"></span>冷光
-        </button>
+        <button class="preset-btn active" data-preset="gold"><span class="preset-swatch" style="background:#FFD700;"></span>金字</button>
+        <button class="preset-btn" data-preset="white"><span class="preset-swatch" style="background:#FFFFFF;"></span>白字</button>
+        <button class="preset-btn" data-preset="red"><span class="preset-swatch" style="background:#FF5566;"></span>紅字</button>
+        <button class="preset-btn" data-preset="cyan"><span class="preset-swatch" style="background:#33DDFF;"></span>冷光</button>
       </div>
     </div>
 
     <div class="panel-section">
-      <div class="section-header">
-        <span class="section-title">照片</span>
-      </div>
+      <div class="section-header"><span class="section-title">照片</span></div>
       <div class="upload-zone" id="dropZone">
         <p id="uploadText">點擊 / 拖曳上傳</p>
         <input type="file" id="fileInput" accept="image/*">
@@ -677,57 +358,37 @@
     </div>
 
     <div class="panel-section">
-      <div class="section-header">
-        <span class="section-title">圖片構圖</span>
-      </div>
+      <div class="section-header"><span class="section-title">圖片構圖</span></div>
       <div class="slider-group">
-        <div class="slider-label-row">
-          <label>縮放</label>
-          <span class="slider-val" id="imgZoomLabel">100%</span>
-        </div>
+        <div class="slider-label-row"><label>縮放</label><span class="slider-val" id="imgZoomLabel">100%</span></div>
         <input type="range" id="imgZoomSlider" min="50" max="200" value="100">
       </div>
       <div class="gap"></div>
       <div class="row">
         <div class="slider-group">
-          <div class="slider-label-row">
-            <label>水平</label>
-            <span class="slider-val" id="imgXLabel">50%</span>
-          </div>
+          <div class="slider-label-row"><label>水平</label><span class="slider-val" id="imgXLabel">50%</span></div>
           <input type="range" id="imgXSlider" min="0" max="100" value="50">
         </div>
         <div class="slider-group">
-          <div class="slider-label-row">
-            <label>垂直</label>
-            <span class="slider-val" id="imgYLabel">50%</span>
-          </div>
+          <div class="slider-label-row"><label>垂直</label><span class="slider-val" id="imgYLabel">50%</span></div>
           <input type="range" id="imgYSlider" min="0" max="100" value="50">
         </div>
       </div>
       <div class="gap"></div>
       <div class="row">
         <div class="slider-group">
-          <div class="slider-label-row">
-            <label>亮度</label>
-            <span class="slider-val" id="brightnessLabel">100%</span>
-          </div>
+          <div class="slider-label-row"><label>亮度</label><span class="slider-val" id="brightnessLabel">100%</span></div>
           <input type="range" id="brightnessSlider" min="30" max="170" value="100">
         </div>
         <div class="slider-group">
-          <div class="slider-label-row">
-            <label>對比</label>
-            <span class="slider-val" id="contrastLabel">100%</span>
-          </div>
+          <div class="slider-label-row"><label>對比</label><span class="slider-val" id="contrastLabel">100%</span></div>
           <input type="range" id="contrastSlider" min="50" max="200" value="100">
         </div>
       </div>
     </div>
 
     <div class="panel-section">
-      <div class="section-header">
-        <span class="section-title">AI 語錄</span>
-        <span class="section-tag tag-blue">Claude</span>
-      </div>
+      <div class="section-header"><span class="section-title">AI 語錄</span><span class="section-tag tag-blue">Claude</span></div>
       <div style="display:flex;flex-direction:column;gap:6px;">
         <button class="btn-ai btn-ai-blue" id="aiGenerateBtn">🎲 隨機產生語錄</button>
         <button class="btn-ai btn-ai-cyan" id="aiVisionBtn">📷 看圖產生語錄</button>
@@ -743,9 +404,7 @@
     </div>
 
     <div class="panel-section">
-      <div class="section-header">
-        <span class="section-title">文字內容</span>
-      </div>
+      <div class="section-header"><span class="section-title">文字內容</span></div>
       <label>主標語（大字）</label>
       <textarea id="mainText">還沒夠強的時候
 說再多都是噪音</textarea>
@@ -759,101 +418,64 @@
     </div>
 
     <div class="panel-section">
-      <div class="section-header">
-        <span class="section-title">文字樣式</span>
-      </div>
+      <div class="section-header"><span class="section-title">文字樣式</span></div>
       <div class="row">
         <div>
           <label>主標顏色</label>
-          <div class="color-pick">
-            <input type="color" id="mainColor" value="#FFD700">
-            <span class="color-hex" id="mainColorHex">#FFD700</span>
-          </div>
+          <div class="color-pick"><input type="color" id="mainColor" value="#FFD700"><span class="color-hex" id="mainColorHex">#FFD700</span></div>
         </div>
         <div>
           <label>副標顏色</label>
-          <div class="color-pick">
-            <input type="color" id="subColor" value="#FFFFFF">
-            <span class="color-hex" id="subColorHex">#FFFFFF</span>
-          </div>
+          <div class="color-pick"><input type="color" id="subColor" value="#FFFFFF"><span class="color-hex" id="subColorHex">#FFFFFF</span></div>
         </div>
       </div>
       <div class="gap"></div>
       <div class="row">
         <div>
           <label>文字對齊</label>
-          <select id="textAlign">
-            <option value="left" selected>靠左</option>
-            <option value="center">置中</option>
-          </select>
+          <select id="textAlign"><option value="left" selected>靠左</option><option value="center">置中</option></select>
         </div>
         <div>
           <label>署名位置</label>
-          <select id="authorPos">
-            <option value="bl" selected>左下</option>
-            <option value="br">右下</option>
-            <option value="tl">左上</option>
-            <option value="tr">右上</option>
-          </select>
+          <select id="authorPos"><option value="bl" selected>左下</option><option value="br">右下</option><option value="tl">左上</option><option value="tr">右上</option></select>
         </div>
       </div>
       <div class="gap"></div>
       <div class="row">
         <div class="slider-group">
-          <div class="slider-label-row">
-            <label>主標位置</label>
-            <span class="slider-val" id="mainYLabel">70%</span>
-          </div>
+          <div class="slider-label-row"><label>主標位置</label><span class="slider-val" id="mainYLabel">70%</span></div>
           <input type="range" id="mainYSlider" min="5" max="95" value="70">
         </div>
         <div class="slider-group">
-          <div class="slider-label-row">
-            <label>副標位置</label>
-            <span class="slider-val" id="subYLabel">85%</span>
-          </div>
+          <div class="slider-label-row"><label>副標位置</label><span class="slider-val" id="subYLabel">85%</span></div>
           <input type="range" id="subYSlider" min="5" max="95" value="85">
         </div>
       </div>
       <div class="gap"></div>
       <div class="slider-group">
-        <div class="slider-label-row">
-          <label>遮罩深度</label>
-          <span class="slider-val" id="overlayLabel">50%</span>
-        </div>
+        <div class="slider-label-row"><label>遮罩深度</label><span class="slider-val" id="overlayLabel">50%</span></div>
         <input type="range" id="overlaySlider" min="0" max="100" value="50">
       </div>
       <div class="gap"></div>
       <div class="row">
         <div class="slider-group">
-          <div class="slider-label-row">
-            <label>主標大小</label>
-            <span class="slider-val" id="mainSizeLabel">64</span>
-          </div>
+          <div class="slider-label-row"><label>主標大小</label><span class="slider-val" id="mainSizeLabel">64</span></div>
           <input type="range" id="mainSizeSlider" min="32" max="120" value="64">
         </div>
         <div class="slider-group">
-          <div class="slider-label-row">
-            <label>副標大小</label>
-            <span class="slider-val" id="subSizeLabel">27</span>
-          </div>
+          <div class="slider-label-row"><label>副標大小</label><span class="slider-val" id="subSizeLabel">27</span></div>
           <input type="range" id="subSizeSlider" min="16" max="60" value="27">
         </div>
       </div>
       <div class="gap"></div>
       <div class="slider-group">
-        <div class="slider-label-row">
-          <label>文字描邊</label>
-          <span class="slider-val" id="strokeLabel">0</span>
-        </div>
+        <div class="slider-label-row"><label>文字描邊</label><span class="slider-val" id="strokeLabel">0</span></div>
         <input type="range" id="strokeSlider" min="0" max="8" value="0">
       </div>
     </div>
 
     <div class="panel-section">
-      <div class="section-header">
-        <span class="section-title">輸出</span>
-        <span class="section-tag tag-orange">Export</span>
-      </div>
+      <div class="section-header"><span class="section-title">輸出</span><span class="section-tag tag-orange">Export</span></div>
       <label>檔案名稱</label>
       <input type="text" id="fileName" value="瘋大叔語錄" placeholder="輸入檔名">
       <div class="gap"></div>
@@ -896,7 +518,6 @@
       <img id="outputImg" alt="語錄圖">
     </div>
   </div>
-
 </div>
 
 <script>
@@ -915,8 +536,8 @@
   var PRESETS = {
     gold:  { mainColor: "#FFD700", subColor: "#FFFFFF", overlay: 50, stroke: 0, mainSize: 64, subSize: 27 },
     white: { mainColor: "#FFFFFF", subColor: "#CCCCCC", overlay: 60, stroke: 2, mainSize: 60, subSize: 25 },
-    red:   { mainColor: "#FF3344", subColor: "#FFFFFF", overlay: 55, stroke: 3, mainSize: 68, subSize: 28 },
-    cyan:  { mainColor: "#00D4FF", subColor: "#E0E0E0", overlay: 65, stroke: 2, mainSize: 62, subSize: 26 }
+    red:   { mainColor: "#FF5566", subColor: "#FFFFFF", overlay: 55, stroke: 3, mainSize: 68, subSize: 28 },
+    cyan:  { mainColor: "#33DDFF", subColor: "#E0E0E0", overlay: 65, stroke: 2, mainSize: 62, subSize: 26 }
   };
 
   var dropZone = document.getElementById("dropZone");
@@ -924,37 +545,22 @@
   var uploadText = document.getElementById("uploadText");
   var emptyState = document.getElementById("emptyState");
   var sizeSelect = document.getElementById("sizeSelect");
-  var imgZoomSlider = document.getElementById("imgZoomSlider");
-  var imgZoomLabel = document.getElementById("imgZoomLabel");
-  var imgXSlider = document.getElementById("imgXSlider");
-  var imgXLabel = document.getElementById("imgXLabel");
-  var imgYSlider = document.getElementById("imgYSlider");
-  var imgYLabel = document.getElementById("imgYLabel");
-  var brightnessSlider = document.getElementById("brightnessSlider");
-  var brightnessLabel = document.getElementById("brightnessLabel");
-  var contrastSlider = document.getElementById("contrastSlider");
-  var contrastLabel = document.getElementById("contrastLabel");
-  var mainTextEl = document.getElementById("mainText");
-  var subTextEl = document.getElementById("subText");
+  var imgZoomSlider = document.getElementById("imgZoomSlider"); var imgZoomLabel = document.getElementById("imgZoomLabel");
+  var imgXSlider = document.getElementById("imgXSlider"); var imgXLabel = document.getElementById("imgXLabel");
+  var imgYSlider = document.getElementById("imgYSlider"); var imgYLabel = document.getElementById("imgYLabel");
+  var brightnessSlider = document.getElementById("brightnessSlider"); var brightnessLabel = document.getElementById("brightnessLabel");
+  var contrastSlider = document.getElementById("contrastSlider"); var contrastLabel = document.getElementById("contrastLabel");
+  var mainTextEl = document.getElementById("mainText"); var subTextEl = document.getElementById("subText");
   var authorTextEl = document.getElementById("authorText");
-  var mainColorEl = document.getElementById("mainColor");
-  var subColorEl = document.getElementById("subColor");
-  var mainColorHex = document.getElementById("mainColorHex");
-  var subColorHex = document.getElementById("subColorHex");
-  var textAlignEl = document.getElementById("textAlign");
-  var authorPosEl = document.getElementById("authorPos");
-  var mainYSlider = document.getElementById("mainYSlider");
-  var mainYLabel = document.getElementById("mainYLabel");
-  var subYSlider = document.getElementById("subYSlider");
-  var subYLabel = document.getElementById("subYLabel");
-  var overlaySlider = document.getElementById("overlaySlider");
-  var overlayLabel = document.getElementById("overlayLabel");
-  var mainSizeSlider = document.getElementById("mainSizeSlider");
-  var mainSizeLabel = document.getElementById("mainSizeLabel");
-  var subSizeSlider = document.getElementById("subSizeSlider");
-  var subSizeLabel = document.getElementById("subSizeLabel");
-  var strokeSlider = document.getElementById("strokeSlider");
-  var strokeLabel = document.getElementById("strokeLabel");
+  var mainColorEl = document.getElementById("mainColor"); var subColorEl = document.getElementById("subColor");
+  var mainColorHex = document.getElementById("mainColorHex"); var subColorHex = document.getElementById("subColorHex");
+  var textAlignEl = document.getElementById("textAlign"); var authorPosEl = document.getElementById("authorPos");
+  var mainYSlider = document.getElementById("mainYSlider"); var mainYLabel = document.getElementById("mainYLabel");
+  var subYSlider = document.getElementById("subYSlider"); var subYLabel = document.getElementById("subYLabel");
+  var overlaySlider = document.getElementById("overlaySlider"); var overlayLabel = document.getElementById("overlayLabel");
+  var mainSizeSlider = document.getElementById("mainSizeSlider"); var mainSizeLabel = document.getElementById("mainSizeLabel");
+  var subSizeSlider = document.getElementById("subSizeSlider"); var subSizeLabel = document.getElementById("subSizeLabel");
+  var strokeSlider = document.getElementById("strokeSlider"); var strokeLabel = document.getElementById("strokeLabel");
   var fileNameEl = document.getElementById("fileName");
   var generateBtn = document.getElementById("generateBtn");
   var saveArea = document.getElementById("saveArea");
@@ -964,8 +570,7 @@
   for (var p = 0; p < presetBtns.length; p++) {
     presetBtns[p].addEventListener("click", function() {
       var key = this.getAttribute("data-preset");
-      var pr = PRESETS[key];
-      if (!pr) return;
+      var pr = PRESETS[key]; if (!pr) return;
       mainColorEl.value = pr.mainColor; mainColorHex.textContent = pr.mainColor;
       subColorEl.value = pr.subColor; subColorHex.textContent = pr.subColor;
       overlaySlider.value = pr.overlay; overlayLabel.textContent = pr.overlay + "%";
@@ -973,8 +578,7 @@
       mainSizeSlider.value = pr.mainSize; mainSizeLabel.textContent = pr.mainSize;
       subSizeSlider.value = pr.subSize; subSizeLabel.textContent = pr.subSize;
       for (var b = 0; b < presetBtns.length; b++) presetBtns[b].classList.remove("active");
-      this.classList.add("active");
-      render();
+      this.classList.add("active"); render();
     });
   }
 
@@ -982,46 +586,32 @@
     var parts = sizeSelect.value.split("x");
     W = parseInt(parts[0]); H = parseInt(parts[1]);
     canvas.width = W; canvas.height = H;
-    canvasContainer.style.aspectRatio = W + "/" + H;
-    render();
+    canvasContainer.style.aspectRatio = W + "/" + H; render();
   }
-  sizeSelect.addEventListener("change", applySize);
-  applySize();
+  sizeSelect.addEventListener("change", applySize); applySize();
 
   dropZone.addEventListener("click", function() { fileInput.click(); });
   dropZone.addEventListener("dragover", function(e) { e.preventDefault(); });
-  dropZone.addEventListener("drop", function(e) {
-    e.preventDefault();
-    if (e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]);
-  });
-  fileInput.addEventListener("change", function(e) {
-    if (e.target.files[0]) loadImage(e.target.files[0]);
-  });
+  dropZone.addEventListener("drop", function(e) { e.preventDefault(); if (e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]); });
+  fileInput.addEventListener("change", function(e) { if (e.target.files[0]) loadImage(e.target.files[0]); });
 
   function loadImage(file) {
     var reader = new FileReader();
     reader.onload = function(ev) {
       var img = new Image();
       img.onload = function() {
-        uploadedImg = img;
-        emptyState.style.display = "none";
-        var old = dropZone.querySelector(".thumb");
-        if (old) old.remove();
-        var thumb = document.createElement("img");
-        thumb.src = ev.target.result;
-        thumb.className = "thumb";
-        dropZone.appendChild(thumb);
+        uploadedImg = img; emptyState.style.display = "none";
+        var old = dropZone.querySelector(".thumb"); if (old) old.remove();
+        var thumb = document.createElement("img"); thumb.src = ev.target.result; thumb.className = "thumb"; dropZone.appendChild(thumb);
         uploadText.textContent = "點擊更換照片";
         imgZoomSlider.value = 100; imgZoomLabel.textContent = "100%";
         imgXSlider.value = 50; imgXLabel.textContent = "50%";
         imgYSlider.value = 50; imgYLabel.textContent = "50%";
         brightnessSlider.value = 100; brightnessLabel.textContent = "100%";
         contrastSlider.value = 100; contrastLabel.textContent = "100%";
-        saveArea.style.display = "none";
-        render();
+        saveArea.style.display = "none"; render();
       };
-      img.src = ev.target.result;
-      uploadedImgBase64 = ev.target.result;
+      img.src = ev.target.result; uploadedImgBase64 = ev.target.result;
     };
     reader.readAsDataURL(file);
   }
@@ -1032,18 +622,18 @@
   var quoteList = document.getElementById("quoteList");
 
   var THEME_POOL = [
-    "創業", "人生", "職場", "金錢", "人際關係", "自我成長", "失敗", "堅持", "選擇", "孤獨",
-    "面子", "底線", "信任", "背叛", "時間", "自由", "恐懼", "野心", "妥協", "格局",
-    "凌晨三點還在回客戶訊息", "被合夥人背刺之後", "第一次發不出薪水的那天",
-    "客戶已讀不回", "半夜失眠盯著天花板", "跟老婆吵完架一個人開車",
-    "銀行帳戶只剩三位數", "朋友變成競爭對手", "喝完酒跟自己講真話",
-    "離開舒適圈的第一天", "被年輕人叫大叔那一刻", "存摺數字終於回來了",
-    "深夜便利商店吃泡麵", "雨天塞在車陣裡想人生", "孩子第一次叫爸爸",
-    "簽下第一張大單", "被笑還是堅持走自己的路", "凌晨跑步只有影子陪",
-    "看到第一根白頭髮", "前任過得比你好", "加班到最後一個離開公司",
-    "泡麵配威士忌的夜晚", "把車停在路邊哭完再上路", "收到律師函那天",
-    "借錢被拒絕才看清朋友", "跟員工說公司沒事但其實快撐不住",
-    "在機場大廳一個人吃飯", "戒掉一個壞習慣的第 30 天"
+    "創業","人生","職場","金錢","人際關係","自我成長","失敗","堅持","選擇","孤獨",
+    "面子","底線","信任","背叛","時間","自由","恐懼","野心","妥協","格局",
+    "凌晨三點還在回客戶訊息","被合夥人背刺之後","第一次發不出薪水的那天",
+    "客戶已讀不回","半夜失眠盯著天花板","跟老婆吵完架一個人開車",
+    "銀行帳戶只剩三位數","朋友變成競爭對手","喝完酒跟自己講真話",
+    "離開舒適圈的第一天","被年輕人叫大叔那一刻","存摺數字終於回來了",
+    "深夜便利商店吃泡麵","雨天塞在車陣裡想人生","孩子第一次叫爸爸",
+    "簽下第一張大單","被笑還是堅持走自己的路","凌晨跑步只有影子陪",
+    "看到第一根白頭髮","前任過得比你好","加班到最後一個離開公司",
+    "泡麵配威士忌的夜晚","把車停在路邊哭完再上路","收到律師函那天",
+    "借錢被拒絕才看清朋友","跟員工說公司沒事但其實快撐不住",
+    "在機場大廳一個人吃飯","戒掉一個壞習慣的第 30 天"
   ];
 
   var TONE_POOL = [
@@ -1057,168 +647,98 @@
 
   function pickRandom(arr, n) {
     var copy = arr.slice(), result = [];
-    for (var i = 0; i < n && copy.length > 0; i++) {
-      var idx = Math.floor(Math.random() * copy.length);
-      result.push(copy.splice(idx, 1)[0]);
-    }
+    for (var i = 0; i < n && copy.length > 0; i++) { var idx = Math.floor(Math.random() * copy.length); result.push(copy.splice(idx, 1)[0]); }
     return result;
   }
 
-  aiGenerateBtn.addEventListener("click", function() {
-    aiGenerateBtn.disabled = true;
-    aiLoading.style.display = "flex";
-    quoteList.innerHTML = "";
+  function renderQuoteCards(quotes, accentColor) {
+    for (var q = 0; q < quotes.length; q++) {
+      (function(quote) {
+        var card = document.createElement("div"); card.className = "quote-card";
+        var ml = quote.main.replace(/\\n/g, "\n").split("\n");
+        var sl = quote.sub.replace(/\\n/g, "\n").split("\n");
+        card.innerHTML = '<div class="quote-card-main" style="color:' + accentColor + '">' + ml.join("<br>") + '</div>'
+                       + '<div class="quote-card-sub">' + sl.join("<br>") + '</div>';
+        card.addEventListener("click", function() {
+          mainTextEl.value = ml.join("\n"); subTextEl.value = sl.join("\n"); render();
+          document.querySelectorAll(".quote-card").forEach(function(c) { c.style.borderLeftColor = "var(--border)"; c.style.background = ""; });
+          card.style.borderLeftColor = accentColor; card.style.background = "rgba(77,148,255,0.06)";
+        });
+        quoteList.appendChild(card);
+      })(quotes[q]);
+    }
+  }
 
-    var tone = TONE_POOL[Math.floor(Math.random() * TONE_POOL.length)];
-    var themes = pickRandom(THEME_POOL, 5);
-
-    var prompt = '你是「瘋大叔」，一個52歲的台灣創業者。'
-      + '本次語氣風格：【' + tone.name + '】—— ' + tone.desc + '。'
-      + '請針對以下 5 個主題各產生 1 組語錄（共 5 組），每組包含主標語和副標語。'
-      + '\n\n【主標與副標的功能定義】'
-      + '主標＝鉤子（Hook）：讓人在 0.5 秒內停下來的那句話。格式：2行，每行6-10個字。'
-      + '副標＝落地（Landing）：接住主標，補脈絡或反轉。格式：2行，每行7-12個字。'
-      + '\n\n主題：1.' + themes.join(' 2.') + '。'
-      + '\n\n要求：①切入角度不同，禁止重複句式 ②禁止雞湯套話 ③具體情境主標要有畫面感 ④主副標語氣重量要有落差。'
-      + '請只回傳JSON格式：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
-
-    fetch(WORKER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        messages: [{ role: "user", content: prompt }]
-      })
-    })
+  function callAI(payload, onSuccess, onError) {
+    fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
     .then(function(res) { return res.json(); })
     .then(function(data) {
-      aiLoading.style.display = "none";
-      aiGenerateBtn.disabled = false;
       var text = "";
-      for (var c = 0; c < data.content.length; c++) {
-        if (data.content[c].type === "text") text += data.content[c].text;
-      }
-      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      var js = text.indexOf("["), je = text.lastIndexOf("]");
-      if (js >= 0 && je > js) text = text.substring(js, je + 1);
-      var quotes = JSON.parse(text);
-      for (var q = 0; q < quotes.length; q++) {
-        (function(quote) {
-          var card = document.createElement("div");
-          card.className = "quote-card";
-          var ml = quote.main.replace(/\\n/g, "\n").split("\n");
-          var sl = quote.sub.replace(/\\n/g, "\n").split("\n");
-          card.innerHTML = '<div class="quote-card-main">' + ml.join("<br>") + '</div>'
-                         + '<div class="quote-card-sub">' + sl.join("<br>") + '</div>';
-          card.addEventListener("click", function() {
-            mainTextEl.value = ml.join("\n");
-            subTextEl.value = sl.join("\n");
-            render();
-            document.querySelectorAll(".quote-card").forEach(function(c) {
-              c.style.borderLeftColor = "var(--border)";
-              c.style.background = "";
-            });
-            card.style.borderLeftColor = "var(--blue)";
-            card.style.background = "rgba(0,102,255,0.06)";
-          });
-          quoteList.appendChild(card);
-        })(quotes[q]);
-      }
+      for (var c = 0; c < data.content.length; c++) { if (data.content[c].type === "text") text += data.content[c].text; }
+      onSuccess(text);
     })
-    .catch(function(err) {
-      aiLoading.style.display = "none";
-      aiGenerateBtn.disabled = false;
-      quoteList.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px;font-family:var(--font-head);letter-spacing:1px;">ERROR — 產生失敗，請重試</div>';
-    });
+    .catch(onError);
+  }
+
+  aiGenerateBtn.addEventListener("click", function() {
+    aiGenerateBtn.disabled = true; aiLoading.style.display = "flex"; quoteList.innerHTML = "";
+    var tone = TONE_POOL[Math.floor(Math.random() * TONE_POOL.length)];
+    var themes = pickRandom(THEME_POOL, 5);
+    var prompt = '你是「瘋大叔」，一個52歲的台灣創業者。本次語氣風格：【' + tone.name + '】—— ' + tone.desc + '。'
+      + '請針對以下 5 個主題各產生 1 組語錄（共 5 組）。'
+      + '主標＝Hook：2行，每行6-10字。副標＝Landing：2行，每行7-12字。'
+      + '主題：1.' + themes.join(' 2.') + '。'
+      + '要求：切入角度不同，禁止重複句式，禁止雞湯套話，主副標語氣重量要有落差。'
+      + '只回傳JSON：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
+    callAI({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] },
+      function(text) {
+        aiLoading.style.display = "none"; aiGenerateBtn.disabled = false;
+        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        var js = text.indexOf("["), je = text.lastIndexOf("]");
+        if (js >= 0 && je > js) text = text.substring(js, je + 1);
+        renderQuoteCards(JSON.parse(text), "var(--blue)");
+      },
+      function() {
+        aiLoading.style.display = "none"; aiGenerateBtn.disabled = false;
+        quoteList.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px;font-family:var(--font-head);">ERROR — 產生失敗，請重試</div>';
+      }
+    );
   });
 
   aiVisionBtn.addEventListener("click", function() {
     if (!uploadedImgBase64) { alert("請先上傳照片"); return; }
-    aiVisionBtn.disabled = true;
-    aiGenerateBtn.disabled = true;
-    aiLoading.style.display = "flex";
-    quoteList.innerHTML = "";
-
+    aiVisionBtn.disabled = true; aiGenerateBtn.disabled = true; aiLoading.style.display = "flex"; quoteList.innerHTML = "";
     var tone = TONE_POOL[Math.floor(Math.random() * TONE_POOL.length)];
-    var tempCanvas = document.createElement("canvas");
-    var tempCtx = tempCanvas.getContext("2d");
-    var maxSide = 800;
-    var ratio = Math.min(maxSide / uploadedImg.width, maxSide / uploadedImg.height, 1);
-    tempCanvas.width = Math.round(uploadedImg.width * ratio);
-    tempCanvas.height = Math.round(uploadedImg.height * ratio);
-    tempCtx.drawImage(uploadedImg, 0, 0, tempCanvas.width, tempCanvas.height);
-    var cb64 = tempCanvas.toDataURL("image/jpeg", 0.7);
-    var parts = cb64.split(",");
-    var mt = parts[0].match(/:(.*?);/)[1];
-    var b64 = parts[1];
-
-    var vp = '你是「瘋大叔」，一個52歲的台灣創業者。風格：【' + tone.name + '】—— ' + tone.desc + '。'
-      + '照片只是情緒觸發器，感受情緒基調後產生語錄，禁止描述照片內容。'
-      + '產生5組語錄，格式：主標2行每行6-10字，副標2行每行7-12字。'
+    var tc = document.createElement("canvas"); var tcx = tc.getContext("2d");
+    var ratio = Math.min(800 / uploadedImg.width, 800 / uploadedImg.height, 1);
+    tc.width = Math.round(uploadedImg.width * ratio); tc.height = Math.round(uploadedImg.height * ratio);
+    tcx.drawImage(uploadedImg, 0, 0, tc.width, tc.height);
+    var cb = tc.toDataURL("image/jpeg", 0.7).split(",");
+    var vp = '你是「瘋大叔」，52歲台灣創業者。風格：【' + tone.name + '】—— ' + tone.desc + '。'
+      + '照片只是情緒觸發器，感受情緒後產生語錄，禁止描述照片內容。'
+      + '產生5組語錄，主標2行每行6-10字，副標2行每行7-12字。'
       + '禁止雞湯，主副標語氣要有落差，全程繁體中文。'
       + '只回傳JSON：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
-
-    fetch(WORKER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        messages: [{ role: "user", content: [
-          { type: "image", source: { type: "base64", media_type: mt, data: b64 } },
-          { type: "text", text: vp }
-        ]}]
-      })
-    })
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      aiLoading.style.display = "none";
-      aiVisionBtn.disabled = false;
-      aiGenerateBtn.disabled = false;
-      var text = "";
-      for (var c = 0; c < data.content.length; c++) {
-        if (data.content[c].type === "text") text += data.content[c].text;
+    callAI({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: [
+      { type: "image", source: { type: "base64", media_type: cb[0].match(/:(.*?);/)[1], data: cb[1] } },
+      { type: "text", text: vp }
+    ]}] },
+      function(text) {
+        aiLoading.style.display = "none"; aiVisionBtn.disabled = false; aiGenerateBtn.disabled = false;
+        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        var js = text.indexOf("["), je = text.lastIndexOf("]");
+        if (js >= 0 && je > js) text = text.substring(js, je + 1);
+        renderQuoteCards(JSON.parse(text), "var(--cyan)");
+      },
+      function() {
+        aiLoading.style.display = "none"; aiVisionBtn.disabled = false; aiGenerateBtn.disabled = false;
+        quoteList.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px;">分析失敗，請重試</div>';
       }
-      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      var js = text.indexOf("["), je = text.lastIndexOf("]");
-      if (js >= 0 && je > js) text = text.substring(js, je + 1);
-      var quotes = JSON.parse(text);
-      for (var q = 0; q < quotes.length; q++) {
-        (function(quote) {
-          var card = document.createElement("div");
-          card.className = "quote-card";
-          var ml = quote.main.replace(/\\n/g, "\n").split("\n");
-          var sl = quote.sub.replace(/\\n/g, "\n").split("\n");
-          card.innerHTML = '<div class="quote-card-main" style="color:var(--cyan)">' + ml.join("<br>") + '</div>'
-                         + '<div class="quote-card-sub">' + sl.join("<br>") + '</div>';
-          card.addEventListener("click", function() {
-            mainTextEl.value = ml.join("\n");
-            subTextEl.value = sl.join("\n");
-            render();
-            document.querySelectorAll(".quote-card").forEach(function(c) {
-              c.style.borderLeftColor = "var(--border)";
-              c.style.background = "";
-            });
-            card.style.borderLeftColor = "var(--cyan)";
-          });
-          quoteList.appendChild(card);
-        })(quotes[q]);
-      }
-    })
-    .catch(function(err) {
-      aiLoading.style.display = "none";
-      aiVisionBtn.disabled = false;
-      aiGenerateBtn.disabled = false;
-      quoteList.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px;">分析失敗，請重試</div>';
-    });
+    );
   });
 
-  mainTextEl.addEventListener("input", render);
-  subTextEl.addEventListener("input", render);
-  authorTextEl.addEventListener("input", render);
-  textAlignEl.addEventListener("change", render);
-  authorPosEl.addEventListener("change", render);
+  mainTextEl.addEventListener("input", render); subTextEl.addEventListener("input", render);
+  authorTextEl.addEventListener("input", render); textAlignEl.addEventListener("change", render); authorPosEl.addEventListener("change", render);
   mainColorEl.addEventListener("input", function() { mainColorHex.textContent = mainColorEl.value.toUpperCase(); render(); });
   subColorEl.addEventListener("input", function() { subColorHex.textContent = subColorEl.value.toUpperCase(); render(); });
   imgZoomSlider.addEventListener("input", function() { imgZoomLabel.textContent = imgZoomSlider.value + "%"; render(); });
@@ -1235,80 +755,51 @@
 
   function render() {
     ctx.clearRect(0, 0, W, H);
-    var brightness = parseInt(brightnessSlider.value) / 100;
-    var contrast = parseInt(contrastSlider.value) / 100;
-    ctx.filter = "brightness(" + brightness + ") contrast(" + contrast + ")";
+    ctx.filter = "brightness(" + (parseInt(brightnessSlider.value)/100) + ") contrast(" + (parseInt(contrastSlider.value)/100) + ")";
     if (uploadedImg) {
-      var zoom = parseInt(imgZoomSlider.value) / 100;
-      var panX = parseInt(imgXSlider.value) / 100;
-      var panY = parseInt(imgYSlider.value) / 100;
-      var imgR = uploadedImg.width / uploadedImg.height;
-      var canR = W / H;
-      var drawW, drawH;
-      if (imgR > canR) { drawH = H; drawW = H * imgR; }
-      else { drawW = W; drawH = W / imgR; }
+      var zoom = parseInt(imgZoomSlider.value)/100, panX = parseInt(imgXSlider.value)/100, panY = parseInt(imgYSlider.value)/100;
+      var imgR = uploadedImg.width/uploadedImg.height, canR = W/H, drawW, drawH;
+      if (imgR > canR) { drawH = H; drawW = H*imgR; } else { drawW = W; drawH = W/imgR; }
       drawW *= zoom; drawH *= zoom;
-      ctx.drawImage(uploadedImg, 0, 0, uploadedImg.width, uploadedImg.height,
-        (W - drawW) * panX, (H - drawH) * panY, drawW, drawH);
-    } else {
-      ctx.fillStyle = "#0e0f11";
-      ctx.fillRect(0, 0, W, H);
-    }
+      ctx.drawImage(uploadedImg, 0, 0, uploadedImg.width, uploadedImg.height, (W-drawW)*panX, (H-drawH)*panY, drawW, drawH);
+    } else { ctx.fillStyle = "#1E2029"; ctx.fillRect(0, 0, W, H); }
     ctx.filter = "none";
-
-    var opacity = parseInt(overlaySlider.value) / 100;
-    var grad = ctx.createLinearGradient(0, H * 0.3, 0, H);
+    var opacity = parseInt(overlaySlider.value)/100;
+    var grad = ctx.createLinearGradient(0, H*0.3, 0, H);
     grad.addColorStop(0, "rgba(0,0,0,0)");
-    grad.addColorStop(0.5, "rgba(0,0,0," + (opacity * 0.4) + ")");
+    grad.addColorStop(0.5, "rgba(0,0,0," + (opacity*0.4) + ")");
     grad.addColorStop(1, "rgba(0,0,0," + opacity + ")");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
 
-    var mSize = parseInt(mainSizeSlider.value);
-    var sSize = parseInt(subSizeSlider.value);
-    var aSize = Math.max(18, Math.round(mSize * 0.3));
-    var pad = 60;
-    var align = textAlignEl.value;
-    var xPos = (align === "center") ? W / 2 : pad;
+    var mSize = parseInt(mainSizeSlider.value), sSize = parseInt(subSizeSlider.value);
+    var aSize = Math.max(18, Math.round(mSize*0.3)), pad = 60;
+    var align = textAlignEl.value, xPos = (align === "center") ? W/2 : pad;
     var strokeW = parseInt(strokeSlider.value);
-    var mLines = mainTextEl.value.split("\n");
-    var sLines = subTextEl.value.split("\n");
-    var author = authorTextEl.value.trim();
-
+    var mLines = mainTextEl.value.split("\n"), sLines = subTextEl.value.split("\n"), author = authorTextEl.value.trim();
     ctx.textAlign = (align === "center") ? "center" : "left";
-    ctx.shadowColor = "rgba(0,0,0,0.7)";
-    ctx.shadowBlur = 8;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
+    ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 10; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
 
     function drawText(text, x, y, color, font, sw) {
       ctx.font = font;
-      if (sw > 0) {
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = sw * 2;
-        ctx.lineJoin = "round";
-        ctx.strokeText(text, x, y);
-      }
-      ctx.fillStyle = color;
-      ctx.fillText(text, x, y);
+      if (sw > 0) { ctx.strokeStyle = "#000"; ctx.lineWidth = sw*2; ctx.lineJoin = "round"; ctx.strokeText(text, x, y); }
+      ctx.fillStyle = color; ctx.fillText(text, x, y);
     }
 
-    var mainY = (parseInt(mainYSlider.value) / 100) * H;
+    var mainY = (parseInt(mainYSlider.value)/100)*H;
     for (var i = 0; i < mLines.length; i++) {
-      if (mLines[i].trim()) drawText(mLines[i], xPos, mainY + i * mSize * 1.3, mainColorEl.value, "900 " + mSize + "px " + FONT, strokeW);
+      if (mLines[i].trim()) drawText(mLines[i], xPos, mainY + i*mSize*1.3, mainColorEl.value, "900 " + mSize + "px " + FONT, strokeW);
     }
-    var subY = (parseInt(subYSlider.value) / 100) * H;
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = 7;
+    var subY = (parseInt(subYSlider.value)/100)*H;
     for (var j = 0; j < sLines.length; j++) {
-      if (sLines[j].trim()) drawText(sLines[j], xPos, subY + j * sSize * 1.5, subColorEl.value, "400 " + sSize + "px " + FONT, Math.max(0, strokeW - 1));
+      if (sLines[j].trim()) drawText(sLines[j], xPos, subY + j*sSize*1.5, subColorEl.value, "400 " + sSize + "px " + FONT, Math.max(0, strokeW-1));
     }
     if (author) {
-      var aPos = authorPosEl.value;
-      var ax, ay;
-      if (aPos === "bl") { ax = pad; ay = H - pad; ctx.textAlign = "left"; }
-      else if (aPos === "br") { ax = W - pad; ay = H - pad; ctx.textAlign = "right"; }
-      else if (aPos === "tl") { ax = pad; ay = pad + aSize; ctx.textAlign = "left"; }
-      else { ax = W - pad; ay = pad + aSize; ctx.textAlign = "right"; }
+      var aPos = authorPosEl.value, ax, ay;
+      if (aPos === "bl") { ax = pad; ay = H-pad; ctx.textAlign = "left"; }
+      else if (aPos === "br") { ax = W-pad; ay = H-pad; ctx.textAlign = "right"; }
+      else if (aPos === "tl") { ax = pad; ay = pad+aSize; ctx.textAlign = "left"; }
+      else { ax = W-pad; ay = pad+aSize; ctx.textAlign = "right"; }
       ctx.shadowBlur = 4;
       drawText(author, ax, ay, "#FFFFFF", "400 " + aSize + "px " + FONT, 0);
     }
@@ -1324,88 +815,49 @@
   generateBtn.addEventListener("click", function() {
     if (!uploadedImg) { alert("請先上傳照片"); return; }
     var dataUrl = canvas.toDataURL("image/png");
-    outputImg.src = dataUrl;
-    saveArea.style.display = "block";
-    postGenBtn.style.display = "flex";
+    outputImg.src = dataUrl; saveArea.style.display = "block"; postGenBtn.style.display = "flex";
     var fn = fileNameEl.value.trim() || "瘋大叔語錄";
-    try {
-      var link = document.createElement("a");
-      link.download = fn + "_" + Date.now() + ".png";
-      link.href = dataUrl; link.click();
-    } catch(e) {}
+    try { var link = document.createElement("a"); link.download = fn + "_" + Date.now() + ".png"; link.href = dataUrl; link.click(); } catch(e) {}
     setTimeout(function() { saveArea.scrollIntoView({ behavior: "smooth", block: "center" }); }, 100);
   });
 
   postGenBtn.addEventListener("click", function() {
-    var mainT = mainTextEl.value.trim();
-    var subT = subTextEl.value.trim();
+    var mainT = mainTextEl.value.trim(), subT = subTextEl.value.trim();
     if (!mainT) { alert("請先選擇或輸入語錄內容"); return; }
-    postGenBtn.disabled = true;
-    postLoading.style.display = "flex";
-    postResult.style.display = "none";
-
+    postGenBtn.disabled = true; postLoading.style.display = "flex"; postResult.style.display = "none";
     var pp = '你是「瘋大叔」陳茂榮，52歲台灣創業者，寫Facebook貼文搭配語錄圖。'
       + '\n主標：' + mainT + '\n副標：' + subT
       + '\n\n風格：超短2-4句不超過80字，口語，大量emoji，「⋯」停頓，前正經後神反轉，自嘲幽默，結尾2-3個句子型hashtag。'
       + '\n禁止：超過80字、雞湯、說教腔。直接輸出貼文，無前綴。';
-
     var msgContent;
     if (uploadedImgBase64 && uploadedImg) {
-      var tc = document.createElement("canvas");
-      var tcx = tc.getContext("2d");
-      var r = Math.min(800 / uploadedImg.width, 800 / uploadedImg.height, 1);
-      tc.width = Math.round(uploadedImg.width * r);
-      tc.height = Math.round(uploadedImg.height * r);
-      tcx.drawImage(uploadedImg, 0, 0, tc.width, tc.height);
-      var cb = tc.toDataURL("image/jpeg", 0.7).split(",");
-      msgContent = [
-        { type: "image", source: { type: "base64", media_type: cb[0].match(/:(.*?);/)[1], data: cb[1] } },
-        { type: "text", text: pp + "\n（參考照片氛圍，但不描述照片內容）" }
-      ];
+      var tc2 = document.createElement("canvas"); var tcx2 = tc2.getContext("2d");
+      var r2 = Math.min(800/uploadedImg.width, 800/uploadedImg.height, 1);
+      tc2.width = Math.round(uploadedImg.width*r2); tc2.height = Math.round(uploadedImg.height*r2);
+      tcx2.drawImage(uploadedImg, 0, 0, tc2.width, tc2.height);
+      var cb2 = tc2.toDataURL("image/jpeg", 0.7).split(",");
+      msgContent = [{ type: "image", source: { type: "base64", media_type: cb2[0].match(/:(.*?);/)[1], data: cb2[1] } }, { type: "text", text: pp + "\n（參考照片氛圍，但不描述照片內容）" }];
     } else { msgContent = pp; }
-
-    fetch(WORKER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1500,
-        messages: [{ role: "user", content: msgContent }]
-      })
-    })
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      postLoading.style.display = "none";
-      postGenBtn.disabled = false;
-      var text = "";
-      for (var c = 0; c < data.content.length; c++) {
-        if (data.content[c].type === "text") text += data.content[c].text;
+    callAI({ model: "claude-sonnet-4-20250514", max_tokens: 1500, messages: [{ role: "user", content: msgContent }] },
+      function(text) {
+        postLoading.style.display = "none"; postGenBtn.disabled = false;
+        postContent.textContent = text.trim(); postResult.style.display = "block";
+        setTimeout(function() { postResult.scrollIntoView({ behavior: "smooth", block: "center" }); }, 100);
+      },
+      function(err) {
+        postLoading.style.display = "none"; postGenBtn.disabled = false;
+        postContent.textContent = "貼文產生失敗：" + (err.message || "請重試"); postResult.style.display = "block";
       }
-      postContent.textContent = text.trim();
-      postResult.style.display = "block";
-      setTimeout(function() { postResult.scrollIntoView({ behavior: "smooth", block: "center" }); }, 100);
-    })
-    .catch(function(err) {
-      postLoading.style.display = "none";
-      postGenBtn.disabled = false;
-      postContent.textContent = "貼文產生失敗：" + (err.message || "請重試");
-      postResult.style.display = "block";
-    });
+    );
   });
 
   copyPostBtn.addEventListener("click", function() {
     var text = postContent.textContent;
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(function() {
-        copyPostBtn.textContent = "✓ 已複製";
-        setTimeout(function() { copyPostBtn.textContent = "複製貼文"; }, 2000);
-      });
+      navigator.clipboard.writeText(text).then(function() { copyPostBtn.textContent = "✓ 已複製"; setTimeout(function() { copyPostBtn.textContent = "複製貼文"; }, 2000); });
     } else {
-      var ta = document.createElement("textarea");
-      ta.value = text; document.body.appendChild(ta); ta.select();
-      document.execCommand("copy"); document.body.removeChild(ta);
-      copyPostBtn.textContent = "✓ 已複製";
-      setTimeout(function() { copyPostBtn.textContent = "複製貼文"; }, 2000);
+      var ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+      copyPostBtn.textContent = "✓ 已複製"; setTimeout(function() { copyPostBtn.textContent = "複製貼文"; }, 2000);
     }
   });
 
