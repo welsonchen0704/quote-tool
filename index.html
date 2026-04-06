@@ -28,7 +28,6 @@
     --cyan:       #33DDFF;
     --orange:     #FF8533;
     --red:        #FF5566;
-    --green:      #33EE88;
     --text-hi:    #F5F7FF;
     --text-mid:   #9BA3C0;
     --text-dim:   #5C6380;
@@ -261,12 +260,12 @@
 
   .gap { height: 8px; }
 
-  /* Preview — sticky on desktop only */
+  /* Preview: sticky on wide screens only */
   .preview-wrap {
     flex: 1; min-width: 300px; max-width: 460px;
     display: flex; flex-direction: column; gap: 12px; height: fit-content;
   }
-  @media (min-width: 721px) {
+  @media (min-width: 960px) {
     .preview-wrap { position: sticky; top: 76px; }
   }
 
@@ -309,9 +308,15 @@
   .post-content::-webkit-scrollbar { width: 3px; }
   .post-content::-webkit-scrollbar-thumb { background: var(--border-hi); }
 
-  @media (max-width: 720px) {
+  /* Mobile: force single column */
+  @media (max-width: 959px) {
     .site-header { padding: 0 16px; }
-    .workspace { padding: 14px 12px 0; gap: 14px; }
+    .workspace {
+      padding: 14px 12px 0;
+      gap: 14px;
+      flex-direction: column;
+      align-items: stretch;
+    }
     .controls, .preview-wrap { max-width: 100%; min-width: 0; width: 100%; }
     h1 { font-size: 15px; letter-spacing: 2px; }
   }
@@ -324,7 +329,7 @@
     <span class="header-badge">瘋大叔</span>
     <h1>語錄圖產生器</h1>
   </div>
-  <div class="header-right">v2.1</div>
+  <div class="header-right">v2.2</div>
 </header>
 
 <div class="workspace">
@@ -662,7 +667,7 @@
         card.addEventListener("click", function() {
           mainTextEl.value = ml.join("\n"); subTextEl.value = sl.join("\n"); render();
           document.querySelectorAll(".quote-card").forEach(function(c) { c.style.borderLeftColor = "var(--border)"; c.style.background = ""; });
-          card.style.borderLeftColor = accentColor; card.style.background = "rgba(77,148,255,0.06)";
+          card.style.borderLeftColor = accentColor;
         });
         quoteList.appendChild(card);
       })(quotes[q]);
