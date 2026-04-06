@@ -168,6 +168,7 @@
     <div class="section-title">AI 語錄產生器</div>
     <div>
       <button class="btn btn-ai" id="aiGenerateBtn">🎲 隨機產生瘋大叔語錄</button>
+      <button class="btn btn-ai" id="aiVisionBtn" style="border-color:#00E5FF; color:#00E5FF;">📷 看圖產生語錄</button>
       <div id="aiLoading" style="display:none; text-align:center; padding:12px; color:#FFD700; font-size:13px;">思考中...</div>
       <div id="quoteList" class="quote-list"></div>
     </div>
@@ -269,6 +270,15 @@
     </div>
 
     <button class="btn btn-primary" id="generateBtn">產生圖片</button>
+    <button class="btn btn-ai" id="postGenBtn" style="margin-top:8px; border-color:#FF9500; color:#FF9500; display:none;">📝 產生貼文內容</button>
+    <div id="postLoading" style="display:none; text-align:center; padding:12px; color:#FF9500; font-size:13px;">貼文生成中...</div>
+    <div id="postResult" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <label style="color:#FF9500;">社群貼文</label>
+        <button class="btn" id="copyPostBtn" style="padding:6px 14px; font-size:12px; background:#FF9500; color:#111;">📋 複製貼文</button>
+      </div>
+      <div id="postContent" style="background:#1a1a1a; border:1px solid #FF9500; border-radius:8px; padding:14px; color:#ddd; font-size:14px; line-height:1.8; white-space:pre-wrap; max-height:400px; overflow-y:auto;"></div>
+    </div>
   </div>
 
   <!-- Preview -->
@@ -287,14 +297,15 @@
 
 <script>
 (function() {
-     var WORKER_URL = "https://quote-proxy.welson-chen.workers.dev";
   var canvas = document.getElementById("canvas");
   var ctx = canvas.getContext("2d");
   var canvasContainer = document.getElementById("canvasContainer");
   var W = 1080, H = 1350;
   canvas.width = W; canvas.height = H;
 
+  var WORKER_URL = "https://quote-proxy.welson-chen.workers.dev";
   var uploadedImg = null;
+  var uploadedImgBase64 = null; // 存圖片 base64 給 Vision API 用
   var FONT = '"PingFang TC","Microsoft JhengHei","Heiti TC",sans-serif';
 
   // --- Presets ---
@@ -418,21 +429,79 @@
         render();
       };
       img.src = ev.target.result;
+      // 存 base64 給 Vision API（去掉 data URL 前綴）
+      uploadedImgBase64 = ev.target.result;
     };
     reader.readAsDataURL(file);
   }
 
   // --- AI Quote Generator ---
   var aiGenerateBtn = document.getElementById("aiGenerateBtn");
+  var aiVisionBtn = document.getElementById("aiVisionBtn");
   var aiLoading = document.getElementById("aiLoading");
   var quoteList = document.getElementById("quoteList");
+
+  // --- 主題池（擴充版：抽象概念 + 具體生活情境）---
+  var THEME_POOL = [
+    // 抽象主題
+    "創業", "人生", "職場", "金錢", "人際關係", "自我成長", "失敗", "堅持", "選擇", "孤獨",
+    "面子", "底線", "信任", "背叛", "時間", "自由", "恐懼", "野心", "妥協", "格局",
+    // 具體情境
+    "凌晨三點還在回客戶訊息", "被合夥人背刺之後", "第一次發不出薪水的那天",
+    "客戶已讀不回", "半夜失眠盯著天花板", "跟老婆吵完架一個人開車",
+    "銀行帳戶只剩三位數", "朋友變成競爭對手", "喝完酒跟自己講真話",
+    "離開舒適圈的第一天", "被年輕人叫大叔那一刻", "存摺數字終於回來了",
+    "深夜便利商店吃泡麵", "雨天塞在車陣裡想人生", "孩子第一次叫爸爸",
+    "簽下第一張大單", "被笑還是堅持走自己的路", "凌晨跑步只有影子陪",
+    "看到第一根白頭髮", "前任過得比你好", "加班到最後一個離開公司",
+    "泡麵配威士忌的夜晚", "把車停在路邊哭完再上路", "收到律師函那天",
+    "借錢被拒絕才看清朋友", "跟員工說公司沒事但其實快撐不住",
+    "在機場大廳一個人吃飯", "戒掉一個壞習慣的第 30 天"
+  ];
+
+  // --- 語氣風格池 ---
+  var TONE_POOL = [
+    { name: "犀利直白", desc: "講話像刀，一句話刺進心裡，不繞彎不給台階" },
+    { name: "幽默自嘲", desc: "用笑自己的方式包裝最痛的領悟，帶點黑色幽默" },
+    { name: "安靜深沉", desc: "不吼不叫，用最低的音量說最重的話，留白比文字多" },
+    { name: "嗆辣反諷", desc: "正話反說，用諷刺戳破自欺和偽善，讓人被嗆到笑出來" },
+    { name: "溫柔但硬", desc: "像老朋友拍你肩膀，語氣溫暖但說的全是不想面對的現實" },
+    { name: "江湖老砲", desc: "像喝酒聊天的大哥，帶著滄桑和故事感，每句話都有畫面" }
+  ];
+
+  // --- 隨機抽取工具 ---
+  function pickRandom(arr, n) {
+    var copy = arr.slice();
+    var result = [];
+    for (var i = 0; i < n && copy.length > 0; i++) {
+      var idx = Math.floor(Math.random() * copy.length);
+      result.push(copy.splice(idx, 1)[0]);
+    }
+    return result;
+  }
 
   aiGenerateBtn.addEventListener("click", function() {
     aiGenerateBtn.disabled = true;
     aiLoading.style.display = "block";
     quoteList.innerHTML = "";
 
-    var prompt = '你是「瘋大叔」，一個52歲的台灣創業者，講話直白、犀利、接地氣，帶點江湖味但有深度。請產生5組語錄，每組包含主標語（2行，每行6-10個字，衝擊力強）和副標語（2行，每行7-12個字，補充說明或反轉）。主題隨機從以下選：創業、人生、職場、金錢、人際關係、自我成長、失敗、堅持、選擇、孤獨。請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
+    // 每次點擊隨機選：1 種語氣 + 5 個主題
+    var tone = TONE_POOL[Math.floor(Math.random() * TONE_POOL.length)];
+    var themes = pickRandom(THEME_POOL, 5);
+
+    var prompt = '你是「瘋大叔」，一個52歲的台灣創業者。'
+      + '本次語氣風格：【' + tone.name + '】—— ' + tone.desc + '。'
+      + '請針對以下 5 個主題各產生 1 組語錄（共 5 組），每組包含主標語和副標語。'
+      + '\n\n【主標與副標的功能定義】'
+      + '主標＝鉤子（Hook）：讓人在 0.5 秒內停下來的那句話。功能是製造衝擊或引發共鳴，可以是一個觀點、金句、或有畫面的斷言。格式：2行，每行6-10個字。'
+      + '副標＝落地（Landing）：接住主標丟出去的力量，讓它從一句漂亮話變成完整觀點。功能是補脈絡或反轉。沒有副標，主標就只是口號。格式：2行，每行7-12個字。'
+      + '\n\n【主副標的關係必須是以下三種之一】'
+      + '①觀點→解釋：主標丟立場，副標說為什麼'
+      + '②畫面→意義：主標描述場景，副標點出背後道理'
+      + '③正→反轉：主標看似A方向，副標突然翻到B'
+      + '\n\n主題：1.' + themes.join(' 2.') + '。'
+      + '\n\n要求：①每組語錄的切入角度要不同，禁止重複句式結構 ②禁止出現「你要相信」「終究會」「不過如此」「總有一天」這類雞湯套話 ③如果主題是具體情境，主標要有畫面感不要抽象化 ④主標和副標的語氣重量要有明確落差，不能兩句都一樣重。'
+      + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
 
     fetch(WORKER_URL, {
       method: "POST",
@@ -453,6 +522,9 @@
       }
       // Clean and parse JSON
       text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      var jsonStart = text.indexOf("[");
+      var jsonEnd = text.lastIndexOf("]");
+      if (jsonStart >= 0 && jsonEnd > jsonStart) { text = text.substring(jsonStart, jsonEnd + 1); }
       var quotes = JSON.parse(text);
       for (var q = 0; q < quotes.length; q++) {
         (function(quote) {
@@ -479,6 +551,112 @@
       aiLoading.style.display = "none";
       aiGenerateBtn.disabled = false;
       quoteList.innerHTML = '<div style="color:#ff4444;font-size:13px;padding:8px;">產生失敗，請重試。' + (err.message || '') + '</div>';
+    });
+  });
+
+  // --- 📷 看圖產生語錄 ---
+  aiVisionBtn.addEventListener("click", function() {
+    if (!uploadedImgBase64) {
+      alert("請先上傳照片，才能使用看圖產生語錄");
+      return;
+    }
+    aiVisionBtn.disabled = true;
+    aiGenerateBtn.disabled = true;
+    aiLoading.style.display = "block";
+    aiLoading.textContent = "正在分析照片...";
+    quoteList.innerHTML = "";
+
+    var tone = TONE_POOL[Math.floor(Math.random() * TONE_POOL.length)];
+
+    // 壓縮圖片再送 API（限制最長邊 800px，降低 token 消耗）
+    var tempCanvas = document.createElement("canvas");
+    var tempCtx = tempCanvas.getContext("2d");
+    var maxSide = 800;
+    var ratio = Math.min(maxSide / uploadedImg.width, maxSide / uploadedImg.height, 1);
+    tempCanvas.width = Math.round(uploadedImg.width * ratio);
+    tempCanvas.height = Math.round(uploadedImg.height * ratio);
+    tempCtx.drawImage(uploadedImg, 0, 0, tempCanvas.width, tempCanvas.height);
+    var compressedBase64 = tempCanvas.toDataURL("image/jpeg", 0.7);
+
+    // 拆出純 base64 和 media_type
+    var parts = compressedBase64.split(",");
+    var mediaType = parts[0].match(/:(.*?);/)[1];
+    var base64Data = parts[1];
+
+    var visionPrompt = '你是「瘋大叔」，一個52歲的台灣創業者。'
+      + '本次語氣風格：【' + tone.name + '】—— ' + tone.desc + '。'
+      + '\n\n【照片的用法——極重要】'
+      + '照片只是「情緒觸發器」，不是語錄的主角。'
+      + '感受照片的情緒基調（孤獨、沉靜、壓力、自由、倔強等），然後用那個情緒寫語錄。'
+      + '規則：①語錄必須能脫離照片獨立成立 ②嚴禁在主標中描述照片內容（禁止「這片田」「這條路」「這棵樹」「綠意」「陽光」等場景描述詞）③主標要是讓任何人在任何情境下看到都會被打到的金句，不是看圖說話'
+      + '\n\n請產生 5 組語錄。'
+      + '\n\n【主標與副標的功能定義】'
+      + '主標＝鉤子（Hook）：讓人在 0.5 秒內停下來的那句話。必須是觀點、金句、或斷言，能單獨截圖傳給朋友還是有力量。格式：2行，每行6-10個字。'
+      + '副標＝落地（Landing）：接住主標丟出去的力量，讓它從一句漂亮話變成完整觀點。格式：2行，每行7-12個字。'
+      + '\n\n【主副標的關係必須是以下三種之一】'
+      + '①觀點→解釋：主標丟立場，副標說為什麼'
+      + '②畫面→意義：主標用比喻或場景起頭，副標點出人生道理'
+      + '③正→反轉：主標看似A方向，副標突然翻到B'
+      + '\n\n要求：①禁止重複句式結構 ②禁止「你要相信」「終究會」「不過如此」「總有一天」等雞湯套話 ③主標和副標的語氣重量要有明確落差 ④全程繁體中文，不要夾雜英文。'
+      + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
+
+    fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+            { type: "text", text: visionPrompt }
+          ]
+        }]
+      })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      aiLoading.style.display = "none";
+      aiLoading.textContent = "思考中...";
+      aiVisionBtn.disabled = false;
+      aiGenerateBtn.disabled = false;
+      var text = "";
+      for (var c = 0; c < data.content.length; c++) {
+        if (data.content[c].type === "text") text += data.content[c].text;
+      }
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      var jsonStart = text.indexOf("[");
+      var jsonEnd = text.lastIndexOf("]");
+      if (jsonStart >= 0 && jsonEnd > jsonStart) { text = text.substring(jsonStart, jsonEnd + 1); }
+      var quotes = JSON.parse(text);
+      for (var q = 0; q < quotes.length; q++) {
+        (function(quote) {
+          var card = document.createElement("div");
+          card.className = "quote-card";
+          card.style.borderLeftColor = "#00E5FF";
+          var mainLines = quote.main.replace(/\\n/g, "\n").split("\n");
+          var subLines = quote.sub.replace(/\\n/g, "\n").split("\n");
+          card.innerHTML = '<div class="quote-card-main" style="color:#00E5FF;">' + mainLines.join("<br>") + '</div>' +
+                           '<div class="quote-card-sub">' + subLines.join("<br>") + '</div>';
+          card.addEventListener("click", function() {
+            mainTextEl.value = mainLines.join("\n");
+            subTextEl.value = subLines.join("\n");
+            render();
+            var cards = quoteList.querySelectorAll(".quote-card");
+            for (var k = 0; k < cards.length; k++) cards[k].style.borderColor = "#333";
+            card.style.borderColor = "#00E5FF";
+          });
+          quoteList.appendChild(card);
+        })(quotes[q]);
+      }
+    })
+    .catch(function(err) {
+      aiLoading.style.display = "none";
+      aiLoading.textContent = "思考中...";
+      aiVisionBtn.disabled = false;
+      aiGenerateBtn.disabled = false;
+      quoteList.innerHTML = '<div style="color:#ff4444;font-size:13px;padding:8px;">看圖分析失敗，請重試。' + (err.message || '') + '</div>';
     });
   });
 
@@ -623,11 +801,19 @@
   }
 
   // --- Generate ---
+  var postGenBtn = document.getElementById("postGenBtn");
+  var postLoading = document.getElementById("postLoading");
+  var postResult = document.getElementById("postResult");
+  var postContent = document.getElementById("postContent");
+  var copyPostBtn = document.getElementById("copyPostBtn");
+
   generateBtn.addEventListener("click", function() {
     if (!uploadedImg) { alert("請先上傳照片"); return; }
     var dataUrl = canvas.toDataURL("image/png");
     outputImg.src = dataUrl;
     saveArea.style.display = "block";
+    // 顯示產生貼文按鈕
+    postGenBtn.style.display = "block";
     var fn = fileNameEl.value.trim() || "瘋大叔語錄";
     try {
       var link = document.createElement("a");
@@ -635,9 +821,122 @@
       link.href = dataUrl;
       link.click();
     } catch(e) {}
-    setTimeout(function() {    var WORKER_URL = "https://quote-proxy.welson-chen.workers.dev";
+    setTimeout(function() {
       saveArea.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 100);
+  });
+
+  // --- 📝 產生貼文內容 ---
+  postGenBtn.addEventListener("click", function() {
+    var mainT = mainTextEl.value.trim();
+    var subT = subTextEl.value.trim();
+    if (!mainT) { alert("請先選擇或輸入語錄內容"); return; }
+
+    postGenBtn.disabled = true;
+    postLoading.style.display = "block";
+    postResult.style.display = "none";
+
+    // 組合貼文 prompt
+    var postPrompt = '你是「瘋大叔」陳茂榮，一個52歲的台灣創業者。你要寫一則 Facebook 貼文，搭配一張語錄圖發布。'
+      + '\n\n【語錄圖上的文字】'
+      + '\n主標：' + mainT
+      + '\n副標：' + subT
+      + '\n\n【你的真實貼文風格——務必100%模仿】'
+      + '\n1. 超短！整則貼文通常只有 2-4 句話，最多不超過 80 字（不含 hashtag）'
+      + '\n2. 口語到底，像傳 LINE 給朋友，不是在寫文章'
+      + '\n3. 大量用 emoji，自然穿插在句子中間或結尾（😂🥲😴👍🤣😘🐶等）'
+      + '\n4. 常用「⋯」製造停頓和節奏感'
+      + '\n5. 招牌手法：前面看似正經 → 最後一句神反轉，讓人笑出來'
+      + '\n6. 自嘲式幽默，拿自己開刀（中年、體力、面子、老了）'
+      + '\n7. 偶爾用「X：Y」的格式製造反差喜感'
+      + '\n8. 結尾可加 2-3 個 hashtag，但要是有創意的句子型（像 #兩隻狗陪我開機 #中年男子最後的體面），不要通用標籤'
+      + '\n\n【範例語感（模仿這個調性）】'
+      + '\n「破相＋失聲＋腰疼⋯WTF 🥲 人生就像打電話，不是你先掛，就是我先掛，所以沒什麼好看不開的，今晚收工來乖乖睡覺去😴」'
+      + '\n「說真的我也不是愛炫耀的人！不過我騎YouBike，就是要選電助力，這不是虛榮，這是中年男子最後的體面。😂🚴」'
+      + '\n「努力不一定成功，但不努力一定很輕鬆 ... 說的沒錯！從今天起大家一起輕鬆過日子！👍」'
+      + '\n\n【禁止事項】'
+      + '\n- 禁止寫超過 80 字（不含 hashtag），寧短勿長'
+      + '\n- 禁止雞湯（「加油」「你一定可以」「相信自己」「終究會」）'
+      + '\n- 禁止文青腔或說教語氣'
+      + '\n- 禁止分段超過 2 段，這不是部落格'
+      + '\n- 全程繁體中文'
+      + '\n\n直接輸出貼文內容，不要任何前綴說明。就是一則可以直接複製貼上發布的貼文。';
+
+    // 如果有圖片，加上 Vision 來感受照片情緒
+    var msgContent;
+    if (uploadedImgBase64 && uploadedImg) {
+      var tempCanvas2 = document.createElement("canvas");
+      var tempCtx2 = tempCanvas2.getContext("2d");
+      var maxSide2 = 800;
+      var ratio2 = Math.min(maxSide2 / uploadedImg.width, maxSide2 / uploadedImg.height, 1);
+      tempCanvas2.width = Math.round(uploadedImg.width * ratio2);
+      tempCanvas2.height = Math.round(uploadedImg.height * ratio2);
+      tempCtx2.drawImage(uploadedImg, 0, 0, tempCanvas2.width, tempCanvas2.height);
+      var compressed2 = tempCanvas2.toDataURL("image/jpeg", 0.7);
+      var parts2 = compressed2.split(",");
+      var mediaType2 = parts2[0].match(/:(.*?);/)[1];
+      var base64Data2 = parts2[1];
+
+      postPrompt += '\n\n（附上語錄圖的底圖照片，感受一下照片的氛圍和情緒，讓貼文的調性跟照片一致，但不要描述照片內容）';
+
+      msgContent = [
+        { type: "image", source: { type: "base64", media_type: mediaType2, data: base64Data2 } },
+        { type: "text", text: postPrompt }
+      ];
+    } else {
+      msgContent = postPrompt;
+    }
+
+    fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        messages: [{ role: "user", content: msgContent }]
+      })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      postLoading.style.display = "none";
+      postGenBtn.disabled = false;
+      var text = "";
+      for (var c = 0; c < data.content.length; c++) {
+        if (data.content[c].type === "text") text += data.content[c].text;
+      }
+      postContent.textContent = text.trim();
+      postResult.style.display = "block";
+      setTimeout(function() {
+        postResult.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    })
+    .catch(function(err) {
+      postLoading.style.display = "none";
+      postGenBtn.disabled = false;
+      postContent.textContent = "貼文產生失敗：" + (err.message || "請重試");
+      postResult.style.display = "block";
+    });
+  });
+
+  // --- 複製貼文 ---
+  copyPostBtn.addEventListener("click", function() {
+    var text = postContent.textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        copyPostBtn.textContent = "✅ 已複製！";
+        setTimeout(function() { copyPostBtn.textContent = "📋 複製貼文"; }, 2000);
+      });
+    } else {
+      // fallback
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      copyPostBtn.textContent = "✅ 已複製！";
+      setTimeout(function() { copyPostBtn.textContent = "📋 複製貼文"; }, 2000);
+    }
   });
 
   render();
