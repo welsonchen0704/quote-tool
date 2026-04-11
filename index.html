@@ -618,9 +618,10 @@
 
   /* Mobile */
   @media (max-width: 720px) {
-    .workspace { padding: 16px 12px 0; gap: 16px; }
+    .workspace { padding: 16px 12px 0; gap: 16px; flex-direction: column; }
     .controls, .preview-wrap { max-width: 100%; min-width: 0; width: 100%; }
-    .preview-wrap { position: static; }
+    .controls { order: 1; }
+    .preview-wrap { position: static; order: 2; }
     .site-header { padding: 14px 16px 12px; }
   }
 </style>
