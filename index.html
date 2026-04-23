@@ -772,6 +772,11 @@
       </div>
       <div class="field-gap"></div>
       <div>
+        <label>此刻情境（選填，越具體貼文越有人味）</label>
+        <textarea id="contextInput" placeholder="例：剛收完帳，三人擠車裡吃泡麵／凌晨被狗叫醒看到銀河／在咖啡廳旁邊大學生在聊未來，我在看廣告數據" style="min-height:70px;"></textarea>
+      </div>
+      <div class="field-gap"></div>
+      <div>
         <label>署名</label>
         <input type="text" id="authorText" value="WELSON CHEN">
       </div>
@@ -871,11 +876,6 @@
       <div class="field-gap"></div>
       <button class="btn-generate" id="generateBtn">產 生 圖 片</button>
       <div class="field-gap"></div>
-      <div id="contextWrap" style="display:none;">
-        <label>此刻情境（選填，越具體貼文越有人味）</label>
-        <textarea id="contextInput" placeholder="例：剛收完帳，三人擠車裡吃泡麵／凌晨被狗叫醒看到銀河／在咖啡廳旁邊大學生在聊未來，我在看廣告數據" style="min-height:70px;"></textarea>
-        <div class="field-gap"></div>
-      </div>
       <button class="btn-ai btn-ai-orange" id="postGenBtn" style="display:none;">📝 產生社群貼文</button>
       <div id="postLoading" class="ai-loading ai-loading-orange" style="display:none;">
         <span class="loading-dot" style="background:var(--orange)"></span>
@@ -1463,7 +1463,6 @@
   var postResult = document.getElementById("postResult");
   var postContent = document.getElementById("postContent");
   var copyPostBtn = document.getElementById("copyPostBtn");
-  var contextWrap = document.getElementById("contextWrap");
   var contextInput = document.getElementById("contextInput");
 
   generateBtn.addEventListener("click", function() {
@@ -1471,7 +1470,6 @@
     var dataUrl = canvas.toDataURL("image/png");
     outputImg.src = dataUrl;
     saveArea.style.display = "block";
-    contextWrap.style.display = "block";
     postGenBtn.style.display = "flex";
     var fn = fileNameEl.value.trim() || "瘋大叔語錄";
     try {
