@@ -141,6 +141,8 @@
     height: fit-content;
   }
 
+  .mobile-tabs { display: none; }
+
   .panel-section {
     padding: 16px 18px;
     border-bottom: 1px solid var(--border-dim);
@@ -493,6 +495,23 @@
   .quote-card-main { color: var(--gold); font-size: 13px; font-weight: 700; margin-bottom: 4px; line-height: 1.5; font-family: var(--font-serif); }
   .quote-card-sub { color: var(--text-mid); font-size: 11px; line-height: 1.6; }
   .quote-card-why { color: var(--text-dim); font-size: 10px; line-height: 1.5; margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--border-dim); letter-spacing: 0.3px; }
+  .quote-refine-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+  .refine-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; }
+  .refine-btn {
+    padding: 5px 11px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-mid);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .refine-btn:hover { border-color: var(--moss-light); color: var(--moss-light); background: var(--moss-glow); }
+  .refine-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   /* ── Preview ── */
   .preview-wrap {
@@ -624,6 +643,34 @@
     .controls { order: 1; }
     .preview-wrap { position: static; order: 2; }
     .site-header { padding: 14px 16px 12px; }
+
+    .mobile-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-dim);
+      background: var(--bg-panel);
+    }
+    .mtab {
+      flex: 1;
+      padding: 9px 2px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-mid);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .mtab.active { border-color: var(--gold); background: rgba(201,148,58,0.12); color: var(--gold); }
+    .controls .panel-section[data-mtab] { display: none; }
+    .controls.mtab-photo  .panel-section[data-mtab="photo"]  { display: block; }
+    .controls.mtab-quote  .panel-section[data-mtab="quote"]  { display: block; }
+    .controls.mtab-style  .panel-section[data-mtab="style"]  { display: block; }
+    .controls.mtab-output .panel-section[data-mtab="output"] { display: block; }
   }
 </style>
 </head>
@@ -645,10 +692,18 @@
 <div class="workspace">
 
   <!-- ── 左側控制面板 ── -->
-  <div class="controls">
+  <div class="controls mtab-photo">
+
+    <!-- 手機版分頁切換（桌機隱藏） -->
+    <div class="mobile-tabs" id="mobileTabs">
+      <button class="mtab active" data-mtab="photo">照片</button>
+      <button class="mtab" data-mtab="quote">語錄</button>
+      <button class="mtab" data-mtab="style">樣式</button>
+      <button class="mtab" data-mtab="output">輸出</button>
+    </div>
 
     <!-- 快速模板 -->
-    <div class="panel-section">
+    <div class="panel-section" data-mtab="style">
       <div class="section-header">
         <span class="section-icon"></span>
         <span class="section-title">快速模板</span>
@@ -670,7 +725,7 @@
     </div>
 
     <!-- 上傳照片 -->
-    <div class="panel-section">
+    <div class="panel-section" data-mtab="photo">
       <div class="section-header">
         <span class="section-icon dim"></span>
         <span class="section-title">照片</span>
@@ -683,7 +738,7 @@
     </div>
 
     <!-- 輸出尺寸 -->
-    <div class="panel-section">
+    <div class="panel-section" data-mtab="photo">
       <div class="section-header">
         <span class="section-icon dim"></span>
         <span class="section-title">輸出尺寸</span>
@@ -698,7 +753,7 @@
     </div>
 
     <!-- 圖片構圖 -->
-    <div class="panel-section">
+    <div class="panel-section" data-mtab="photo">
       <div class="section-header">
         <span class="section-icon dim"></span>
         <span class="section-title">圖片構圖</span>
@@ -732,7 +787,7 @@
     </div>
 
     <!-- AI 語錄產生器 -->
-    <div class="panel-section">
+    <div class="panel-section" data-mtab="quote">
       <div class="section-header">
         <span class="section-icon moss"></span>
         <span class="section-title">AI 語錄產生器</span>
@@ -752,10 +807,17 @@
         <span>思考中</span>
       </div>
       <div id="quoteList" class="quote-list"></div>
+      <div id="quoteRefineRow" class="quote-refine-row" style="display:none;">
+        <span class="refine-label">再來 5 句，但</span>
+        <button class="refine-btn" data-hint="harder">更狠</button>
+        <button class="refine-btn" data-hint="plain">更白話</button>
+        <button class="refine-btn" data-hint="shorter">更短</button>
+        <button class="refine-btn" data-hint="daily">更生活</button>
+      </div>
     </div>
 
     <!-- 文字內容 -->
-    <div class="panel-section">
+    <div class="panel-section" data-mtab="quote">
       <div class="section-header">
         <span class="section-icon"></span>
         <span class="section-title">文字內容</span>
@@ -784,7 +846,7 @@
     </div>
 
     <!-- 文字樣式 -->
-    <div class="panel-section">
+    <div class="panel-section" data-mtab="style">
       <div class="section-header">
         <span class="section-icon"></span>
         <span class="section-title">文字樣式</span>
@@ -865,7 +927,7 @@
     </div>
 
     <!-- 輸出 -->
-    <div class="panel-section">
+    <div class="panel-section" data-mtab="output">
       <div class="section-header">
         <span class="section-icon orange"></span>
         <span class="section-title">輸出</span>
@@ -908,6 +970,7 @@
     <div class="save-area" id="saveArea">
       <p class="save-hint">⬇ 長按下方圖片儲存到相簿</p>
       <img id="outputImg" alt="語錄圖輸出">
+      <button class="btn-ai btn-ai-gold" id="shareBtn" style="display:none;margin-top:12px;">分享圖片</button>
     </div>
   </div>
 
@@ -1054,6 +1117,14 @@
   var aiVisionBtn = document.getElementById("aiVisionBtn");
   var aiLoading = document.getElementById("aiLoading");
   var quoteList = document.getElementById("quoteList");
+  var refineRow = document.getElementById("quoteRefineRow");
+  var lastGenKind = null; // "random" | "vision"
+  var REFINE_HINTS = {
+    harder:  '這次語氣再加重一級——更直接、更不留情，戳得更深，但不變成髒話或人身攻擊。',
+    plain:   '這次用詞更口語白話，像在講話不像在寫字，少用成語和文謅謅的詞。',
+    shorter: '這次主標和副標都更精煉——主標每行 4-7 字，副標每行 5-9 字。',
+    daily:   '這次切角更貼近日常生活的小事小物（吃飯、通勤、家人、身體、手機、天氣），少談抽象大道理。'
+  };
 
   // 品牌狀態
   var currentBrand = "feng"; // "feng" 或 "camp"
@@ -1130,6 +1201,8 @@
       if (authorEl && (authorEl.value === "WELSON CHEN" || authorEl.value === "")) authorEl.value = "瘋大叔 × 露營瘋";
     }
     document.getElementById("quoteList").innerHTML = "";
+    var _qrr = document.getElementById("quoteRefineRow");
+    if (_qrr) _qrr.style.display = "none";
     saveSettings();
   }
 
@@ -1145,10 +1218,13 @@
     return result;
   }
 
-  aiGenerateBtn.addEventListener("click", function() {
+  function generateQuotes(refineHint) {
+    lastGenKind = "random";
     aiGenerateBtn.disabled = true;
+    aiVisionBtn.disabled = true;
     aiLoading.style.display = "flex";
     quoteList.innerHTML = "";
+    if (refineRow) refineRow.style.display = "none";
 
     var tone = TONE_POOL[Math.floor(Math.random() * TONE_POOL.length)];
     var pool = (currentBrand === "camp") ? THEME_POOL_CAMP : THEME_POOL_FENG;
@@ -1185,6 +1261,7 @@
         + '\n\n要求：①每組語錄的切入角度要不同，禁止重複句式結構 ②禁止出現「你要相信」「終究會」「不過如此」「總有一天」這類雞湯套話 ③如果主題是具體情境，主標要有畫面感不要抽象化 ④主標和副標的語氣重量要有明確落差，不能兩句都一樣重 ⑤全程繁體中文，不出現簡體字 ⑥每組再附一個 why 欄位：用 12 字以內點出這句打中的是什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
         + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
     }
+    if (refineHint) prompt += '\n\n【這次的特別要求】' + refineHint + '\n用這個方向重出一批新的 5 組，不要重複上一批的句子。';
 
     fetch(WORKER_URL, {
       method: "POST",
@@ -1199,6 +1276,7 @@
     .then(function(data) {
       aiLoading.style.display = "none";
       aiGenerateBtn.disabled = false;
+      aiVisionBtn.disabled = false;
       var text = "";
       for (var c = 0; c < data.content.length; c++) {
         if (data.content[c].type === "text") text += data.content[c].text;
@@ -1230,20 +1308,24 @@
           quoteList.appendChild(card);
         })(quotes[q]);
       }
+      if (refineRow) refineRow.style.display = "flex";
     })
     .catch(function(err) {
       aiLoading.style.display = "none";
       aiGenerateBtn.disabled = false;
+      aiVisionBtn.disabled = false;
       quoteList.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px;">產生失敗，請重試。' + (err.message || '') + '</div>';
     });
-  });
+  }
+  aiGenerateBtn.addEventListener("click", function() { generateQuotes(null); });
 
   // --- 📷 看圖產生語錄 ---
-  aiVisionBtn.addEventListener("click", function() {
+  function generateVisionQuotes(refineHint) {
     if (!uploadedImgBase64) {
       alert("請先上傳照片，才能使用看圖產生語錄");
       return;
     }
+    lastGenKind = "vision";
     aiVisionBtn.disabled = true;
     aiGenerateBtn.disabled = true;
     aiLoading.style.display = "flex";
@@ -1252,6 +1334,7 @@
     aiLoading.querySelector("span:last-child").textContent = "分析照片中";
     aiLoading.className = "ai-loading";
     quoteList.innerHTML = "";
+    if (refineRow) refineRow.style.display = "none";
 
     var tone = TONE_POOL[Math.floor(Math.random() * TONE_POOL.length)];
 
@@ -1303,6 +1386,7 @@
         + '\n\n要求：①禁止重複句式結構 ②禁止「你要相信」「終究會」「不過如此」「總有一天」等雞湯套話 ③主標和副標的語氣重量要有明確落差 ④全程繁體中文，不要夾雜英文 ⑤每組再附一個 why 欄位：用 12 字以內點出這句打中的是什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
         + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
     }
+    if (refineHint) visionPrompt += '\n\n【這次的特別要求】' + refineHint + '\n用這個方向重出一批新的 5 組，不要重複上一批的句子。';
 
     fetch(WORKER_URL, {
       method: "POST",
@@ -1356,6 +1440,7 @@
           quoteList.appendChild(card);
         })(quotes[q]);
       }
+      if (refineRow) refineRow.style.display = "flex";
     })
     .catch(function(err) {
       aiLoading.style.display = "none";
@@ -1363,7 +1448,45 @@
       aiGenerateBtn.disabled = false;
       quoteList.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px;">看圖分析失敗，請重試。' + (err.message || '') + '</div>';
     });
+  }
+  aiVisionBtn.addEventListener("click", function() { generateVisionQuotes(null); });
+
+  // --- 「再來 5 句，但更⋯」迭代按鈕 ---
+  var refineBtns = refineRow ? refineRow.querySelectorAll(".refine-btn") : [];
+  for (var rb = 0; rb < refineBtns.length; rb++) {
+    refineBtns[rb].addEventListener("click", function() {
+      var hint = REFINE_HINTS[this.getAttribute("data-hint")] || null;
+      if (lastGenKind === "vision") generateVisionQuotes(hint);
+      else generateQuotes(hint);
+    });
+  }
+
+  // --- 一鍵分享（Web Share API，支援的裝置才顯示按鈕） ---
+  var shareBtn = document.getElementById("shareBtn");
+  shareBtn.addEventListener("click", function() {
+    if (!outputImg.src) return;
+    fetch(outputImg.src).then(function(r) { return r.blob(); }).then(function(blob) {
+      var fname = (fileNameEl.value.trim() || "瘋大叔語錄") + ".png";
+      var file = new File([blob], fname, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        return navigator.share({ files: [file], title: "瘋大叔語錄", text: mainTextEl.value.replace(/\n/g, " ") });
+      }
+      var a = document.createElement("a");
+      a.download = fname; a.href = outputImg.src; a.click();
+    }).catch(function() {});
   });
+
+  // --- 手機版分頁切換 ---
+  var controlsEl = document.querySelector(".controls");
+  var mtabBtns = document.querySelectorAll(".mtab");
+  for (var mt = 0; mt < mtabBtns.length; mt++) {
+    mtabBtns[mt].addEventListener("click", function() {
+      var tab = this.getAttribute("data-mtab");
+      controlsEl.className = "controls mtab-" + tab;
+      for (var mb = 0; mb < mtabBtns.length; mb++) mtabBtns[mb].classList.toggle("active", mtabBtns[mb] === this);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
 
   // --- Bindings ---
   mainTextEl.addEventListener("input", render);
@@ -1560,6 +1683,7 @@
     var dataUrl = canvas.toDataURL("image/png");
     outputImg.src = dataUrl;
     saveArea.style.display = "block";
+    shareBtn.style.display = (navigator.canShare ? "flex" : "none");
     postGenBtn.style.display = "flex";
     var fn = fileNameEl.value.trim() || "瘋大叔語錄";
     try {
