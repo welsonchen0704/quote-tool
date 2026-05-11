@@ -492,6 +492,7 @@
   .quote-card:hover::before { opacity: 1; }
   .quote-card-main { color: var(--gold); font-size: 13px; font-weight: 700; margin-bottom: 4px; line-height: 1.5; font-family: var(--font-serif); }
   .quote-card-sub { color: var(--text-mid); font-size: 11px; line-height: 1.6; }
+  .quote-card-why { color: var(--text-dim); font-size: 10px; line-height: 1.5; margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--border-dim); letter-spacing: 0.3px; }
 
   /* ── Preview ── */
   .preview-wrap {
@@ -994,6 +995,7 @@
       for (var b = 0; b < presetBtns.length; b++) presetBtns[b].classList.remove("active");
       this.classList.add("active");
       render();
+      saveSettings();
     });
   }
 
@@ -1128,6 +1130,7 @@
       if (authorEl && (authorEl.value === "WELSON CHEN" || authorEl.value === "")) authorEl.value = "瘋大叔 × 露營瘋";
     }
     document.getElementById("quoteList").innerHTML = "";
+    saveSettings();
   }
 
   var THEME_POOL = THEME_POOL_FENG; // 保留舊變數名稱供其他地方使用
@@ -1164,9 +1167,9 @@
         + '\n②動作→反轉：主標寫一個露營動作，副標翻轉意義'
         + '\n③共識→補刀：主標講露營人都懂的事，副標一刀切到底'
         + '\n\n主題：1.' + themes.join(' 2.') + '。'
-        + '\n\n要求：①每組語錄的切入角度要不同，禁止重複句式結構 ②禁止「大自然真美」「生命很珍貴」「感謝自然」「療癒身心」這類抒情套句，也禁止「終究會」「不過如此」「總有一天」這類雞湯 ③主標和副標的語氣重量要有明確落差，不能兩句都一樣重 ④全程繁體中文，不出現簡體字。'
+        + '\n\n要求：①每組語錄的切入角度要不同，禁止重複句式結構 ②禁止「大自然真美」「生命很珍貴」「感謝自然」「療癒身心」這類抒情套句，也禁止「終究會」「不過如此」「總有一天」這類雞湯 ③主標和副標的語氣重量要有明確落差，不能兩句都一樣重 ④全程繁體中文，不出現簡體字 ⑤每組再附一個 why 欄位：用 12 字以內點出這句打中露營人的什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
         + '\n\n【語氣要求】圈內人說圈內話，自嘲，有點欠，但有溫度，像老露友在篝火旁說的那種話。'
-        + '\n\n只回傳JSON格式，不要其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
+        + '\n\n只回傳JSON格式，不要其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
     } else {
       prompt = '你是「瘋大叔」，一個52歲的台灣創業者。'
         + '本次語氣風格：【' + tone.name + '】—— ' + tone.desc + '。'
@@ -1179,8 +1182,8 @@
         + '②畫面→意義：主標描述場景，副標點出背後道理'
         + '③正→反轉：主標看似A方向，副標突然翻到B'
         + '\n\n主題：1.' + themes.join(' 2.') + '。'
-        + '\n\n要求：①每組語錄的切入角度要不同，禁止重複句式結構 ②禁止出現「你要相信」「終究會」「不過如此」「總有一天」這類雞湯套話 ③如果主題是具體情境，主標要有畫面感不要抽象化 ④主標和副標的語氣重量要有明確落差，不能兩句都一樣重 ⑤全程繁體中文，不出現簡體字。'
-        + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
+        + '\n\n要求：①每組語錄的切入角度要不同，禁止重複句式結構 ②禁止出現「你要相信」「終究會」「不過如此」「總有一天」這類雞湯套話 ③如果主題是具體情境，主標要有畫面感不要抽象化 ④主標和副標的語氣重量要有明確落差，不能兩句都一樣重 ⑤全程繁體中文，不出現簡體字 ⑥每組再附一個 why 欄位：用 12 字以內點出這句打中的是什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
+        + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
     }
 
     fetch(WORKER_URL, {
@@ -1188,7 +1191,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 1000,
+        max_tokens: 1200,
         messages: [{ role: "user", content: prompt }]
       })
     })
@@ -1212,11 +1215,13 @@
           var mainLines = quote.main.replace(/\\n/g, "\n").split("\n");
           var subLines = quote.sub.replace(/\\n/g, "\n").split("\n");
           card.innerHTML = '<div class="quote-card-main">' + mainLines.join("<br>") + '</div>' +
-                           '<div class="quote-card-sub">' + subLines.join("<br>") + '</div>';
+                           '<div class="quote-card-sub">' + subLines.join("<br>") + '</div>' +
+                           (quote.why ? '<div class="quote-card-why">打中：' + quote.why + '</div>' : '');
           card.addEventListener("click", function() {
             mainTextEl.value = mainLines.join("\n");
             subTextEl.value = subLines.join("\n");
             render();
+            saveSettings();
             var cards = quoteList.querySelectorAll(".quote-card");
             for (var k = 0; k < cards.length; k++) cards[k].style.borderColor = "";
             card.style.borderColor = "var(--gold)";
@@ -1277,9 +1282,9 @@
         + '\n①場景→吐槽：主標描述露營場景，副標吐出心裡話'
         + '\n②動作→反轉：主標寫一個露營動作，副標翻轉意義'
         + '\n③共識→補刀：主標講露營人都懂的事，副標一刀切到底'
-        + '\n\n要求：①禁止重複句式結構 ②禁止「大自然真美」「感謝自然」「生命很珍貴」「療癒身心」等抒情套句，也禁止「終究會」「不過如此」這類雞湯 ③主副標語氣重量要有落差 ④全程繁體中文，不出現簡體字。'
+        + '\n\n要求：①禁止重複句式結構 ②禁止「大自然真美」「感謝自然」「生命很珍貴」「療癒身心」等抒情套句，也禁止「終究會」「不過如此」這類雞湯 ③主副標語氣重量要有落差 ④全程繁體中文，不出現簡體字 ⑤每組再附一個 why 欄位：用 12 字以內點出這句打中露營人的什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
         + '\n【語氣】圈內人說圈內話，自嘲，有點欠，但有溫度。'
-        + '\n\n只回傳JSON，不要其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
+        + '\n\n只回傳JSON，不要其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
     } else {
       visionPrompt = '你是「瘋大叔」，一個52歲的台灣創業者。'
         + '本次語氣風格：【' + tone.name + '】—— ' + tone.desc + '。'
@@ -1295,8 +1300,8 @@
         + '①觀點→解釋：主標丟立場，副標說為什麼'
         + '②畫面→意義：主標用比喻或場景起頭，副標點出人生道理'
         + '③正→反轉：主標看似A方向，副標突然翻到B'
-        + '\n\n要求：①禁止重複句式結構 ②禁止「你要相信」「終究會」「不過如此」「總有一天」等雞湯套話 ③主標和副標的語氣重量要有明確落差 ④全程繁體中文，不要夾雜英文。'
-        + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行"},...]';
+        + '\n\n要求：①禁止重複句式結構 ②禁止「你要相信」「終究會」「不過如此」「總有一天」等雞湯套話 ③主標和副標的語氣重量要有明確落差 ④全程繁體中文，不要夾雜英文 ⑤每組再附一個 why 欄位：用 12 字以內點出這句打中的是什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
+        + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
     }
 
     fetch(WORKER_URL, {
@@ -1304,7 +1309,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 1000,
+        max_tokens: 1200,
         messages: [{
           role: "user",
           content: [
@@ -1337,11 +1342,13 @@
           var mainLines = quote.main.replace(/\\n/g, "\n").split("\n");
           var subLines = quote.sub.replace(/\\n/g, "\n").split("\n");
           card.innerHTML = '<div class="quote-card-main" style="color:var(--cyan)">' + mainLines.join("<br>") + '</div>' +
-                           '<div class="quote-card-sub">' + subLines.join("<br>") + '</div>';
+                           '<div class="quote-card-sub">' + subLines.join("<br>") + '</div>' +
+                           (quote.why ? '<div class="quote-card-why">打中：' + quote.why + '</div>' : '');
           card.addEventListener("click", function() {
             mainTextEl.value = mainLines.join("\n");
             subTextEl.value = subLines.join("\n");
             render();
+            saveSettings();
             var cards = quoteList.querySelectorAll(".quote-card");
             for (var k = 0; k < cards.length; k++) cards[k].style.borderColor = "";
             card.style.borderColor = "var(--cyan)";
@@ -1379,6 +1386,64 @@
   mainSizeSlider.addEventListener("input", function() { mainSizeLabel.textContent = mainSizeSlider.value; render(); });
   subSizeSlider.addEventListener("input", function() { subSizeLabel.textContent = subSizeSlider.value; render(); });
   strokeSlider.addEventListener("input", function() { strokeLabel.textContent = strokeSlider.value; render(); });
+
+  // --- Settings persistence (localStorage) ---
+  var SETTINGS_KEY = "fengQuoteToolSettings_v1";
+  var restoringSettings = false;
+  function saveSettings() {
+    if (restoringSettings) return;
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        brand: currentBrand,
+        size: sizeSelect.value,
+        mainColor: mainColorEl.value,
+        subColor: subColorEl.value,
+        textAlign: textAlignEl.value,
+        authorPos: authorPosEl.value,
+        mainY: mainYSlider.value,
+        subY: subYSlider.value,
+        overlay: overlaySlider.value,
+        mainSize: mainSizeSlider.value,
+        subSize: subSizeSlider.value,
+        stroke: strokeSlider.value,
+        author: authorTextEl.value,
+        fileName: fileNameEl.value,
+        mainText: mainTextEl.value,
+        subText: subTextEl.value
+      }));
+    } catch (e) {}
+  }
+  function loadSettings() {
+    var s = null;
+    try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null"); } catch (e) { s = null; }
+    if (!s || typeof s !== "object") return;
+    restoringSettings = true;
+    try {
+      if (s.brand === "camp" || s.brand === "feng") window.switchBrand(s.brand);
+      if (s.size) sizeSelect.value = s.size;
+      if (s.mainColor) { mainColorEl.value = s.mainColor; mainColorHex.textContent = String(s.mainColor).toUpperCase(); }
+      if (s.subColor) { subColorEl.value = s.subColor; subColorHex.textContent = String(s.subColor).toUpperCase(); }
+      if (s.textAlign) textAlignEl.value = s.textAlign;
+      if (s.authorPos) authorPosEl.value = s.authorPos;
+      if (s.mainY != null) { mainYSlider.value = s.mainY; mainYLabel.textContent = s.mainY + "%"; }
+      if (s.subY != null) { subYSlider.value = s.subY; subYLabel.textContent = s.subY + "%"; }
+      if (s.overlay != null) { overlaySlider.value = s.overlay; overlayLabel.textContent = s.overlay + "%"; }
+      if (s.mainSize != null) { mainSizeSlider.value = s.mainSize; mainSizeLabel.textContent = s.mainSize; }
+      if (s.subSize != null) { subSizeSlider.value = s.subSize; subSizeLabel.textContent = s.subSize; }
+      if (s.stroke != null) { strokeSlider.value = s.stroke; strokeLabel.textContent = s.stroke; }
+      if (typeof s.author === "string") authorTextEl.value = s.author;
+      if (typeof s.fileName === "string" && s.fileName) fileNameEl.value = s.fileName;
+      if (typeof s.mainText === "string") mainTextEl.value = s.mainText;
+      if (typeof s.subText === "string") subTextEl.value = s.subText;
+      applySize();
+    } catch (e) {}
+    restoringSettings = false;
+  }
+  var persistEls = [sizeSelect, mainColorEl, subColorEl, textAlignEl, authorPosEl, mainYSlider, subYSlider, overlaySlider, mainSizeSlider, subSizeSlider, strokeSlider, authorTextEl, fileNameEl, mainTextEl, subTextEl];
+  for (var pe = 0; pe < persistEls.length; pe++) {
+    persistEls[pe].addEventListener("input", saveSettings);
+    persistEls[pe].addEventListener("change", saveSettings);
+  }
 
   // --- Render ---
   function render() {
@@ -1664,6 +1729,7 @@
     }
   });
 
+  loadSettings();
   render();
 })();
 </script>
