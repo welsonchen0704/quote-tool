@@ -708,6 +708,7 @@ const SYSTEM_PROMPT = `你是一位專業的英文老師，為使用繁體中文
 4. 提供文章的繁體中文完整翻譯。
 5. 所有中文必須是繁體中文（臺灣用語），絕對不能是簡體中文。
 6. 若使用者指定了主題，文章與單字應與該主題相關。
+7. 若使用者提供「請避免的單字」清單，**這 5 個目標單字一定不能跟清單重複**（同詞根的不同詞形也應避免，例如清單有 endeavor 就不要選 endeavors / endeavored）。但這些已學過的詞可以自然地出現在文章內文中。
 
 請務必返回有效的 JSON，符合提供的 schema。`;
 
@@ -746,6 +747,22 @@ const OUTPUT_SCHEMA = {
   additionalProperties: false,
 };
 
+function recentTaughtWords(days = 60, max = 300) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffKey = cutoff.toISOString().slice(0, 10);
+  const seen = new Set();
+  for (const { dateKey, lesson } of listLessons()) {
+    if (dateKey < cutoffKey) break; // listLessons is newest-first
+    for (const w of (lesson.words || [])) {
+      if (w.word) seen.add(w.word.toLowerCase().trim());
+      if (seen.size >= max) break;
+    }
+    if (seen.size >= max) break;
+  }
+  return [...seen];
+}
+
 async function generateLesson() {
   if (!state.apiKey || !state.apiKey.startsWith('sk-ant-')) {
     showError('請先在「設定」中輸入有效的 Anthropic API Key（sk-ant- 開頭）');
@@ -753,10 +770,15 @@ async function generateLesson() {
     return null;
   }
 
+  const taught = recentTaughtWords(60, 300);
+  const avoidLine = taught.length
+    ? `\n最近 60 天已當作目標單字教過、請避免再選為目標單字的詞（可在文章內自然出現，但不要列在 words 陣列）：\n${taught.join(', ')}\n`
+    : '';
+
   const userMsg = `日期：${todayKey()}
 難度：${state.level}
 主題：${state.topic.trim() || '不限（請挑選實用的日常 / 通用主題）'}
-
+${avoidLine}
 請生成今日的 5 個英文單字與整合文章。`;
 
   const body = {
