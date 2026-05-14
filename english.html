@@ -519,6 +519,13 @@
         <label>主題 (選填)</label>
         <input type="text" id="topic" placeholder="例如：商業、旅遊、科技、日常對話、新聞…">
       </div>
+      <div class="form-row">
+        <label>語音</label>
+        <select id="voiceSelect"><option value="">自動挑最高品質</option></select>
+      </div>
+      <div class="info-msg" style="grid-column: 2; margin-left: 122px;">
+        iOS 預設的 Samantha 較機械。請到 <b>設定 → 輔助使用 → 口說內容 → 聲音 → 英文</b>，下載「<b>Ava (進階)</b>」或「<b>Premium</b>」結尾的聲音，本頁會自動優先使用。
+      </div>
     </div>
   </details>
 
@@ -591,6 +598,7 @@ const state = {
   model: 'claude-opus-4-7',
   level: 'B1-B2',
   topic: '',
+  voiceURI: '',
   currentLesson: null,
 };
 
@@ -615,6 +623,7 @@ function loadSettings() {
     if (s.model) state.model = s.model;
     if (s.level) state.level = s.level;
     if (s.topic) state.topic = s.topic;
+    if (s.voiceURI) state.voiceURI = s.voiceURI;
   } catch (e) {}
 }
 function saveSettings() {
@@ -623,6 +632,7 @@ function saveSettings() {
     model: state.model,
     level: state.level,
     topic: state.topic,
+    voiceURI: state.voiceURI,
   }));
 }
 function loadLesson(dateKey) {
@@ -866,16 +876,68 @@ function renderHistory() {
 
 // ---------- Speech ----------
 let englishVoice = null;
-function pickEnglishVoice() {
-  const voices = speechSynthesis.getVoices();
-  englishVoice = voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('female'))
-    || voices.find(v => v.lang === 'en-US')
-    || voices.find(v => v.lang.startsWith('en'))
-    || null;
+
+function scoreVoice(v) {
+  const name = (v.name || '').toLowerCase();
+  const uri = (v.voiceURI || '').toLowerCase();
+  if (!v.lang || !v.lang.toLowerCase().startsWith('en')) return -1;
+  let score = 0;
+  // Apple iOS quality tiers
+  if (name.includes('premium') || uri.includes('premium')) score += 100;
+  else if (name.includes('enhanced') || uri.includes('enhanced')) score += 80;
+  // Google / Cloud neural voices
+  if (name.includes('wavenet') || name.includes('neural2')) score += 90;
+  else if (name.includes('neural') || name.includes('natural')) score += 70;
+  // iOS 17+ Siri voice names tend to be higher quality
+  const siriNames = ['ava', 'evan', 'zoe', 'nathan', 'joelle', 'noelle', 'serena'];
+  if (siriNames.some(n => name.includes(n))) score += 30;
+  // Cloud / network voices usually beat local
+  if (v.localService === false) score += 15;
+  // Locale preference
+  if (v.lang === 'en-US') score += 20;
+  else if (v.lang === 'en-GB' || v.lang === 'en-AU') score += 10;
+  else score += 3;
+  return score;
 }
+
+function bestVoice(voices) {
+  let best = null;
+  let bestScore = -1;
+  for (const v of voices) {
+    const s = scoreVoice(v);
+    if (s > bestScore) { bestScore = s; best = v; }
+  }
+  return best;
+}
+
+function refreshVoices() {
+  const voices = speechSynthesis.getVoices();
+  // Apply user choice, else best available
+  if (state.voiceURI) {
+    englishVoice = voices.find(v => v.voiceURI === state.voiceURI) || bestVoice(voices);
+  } else {
+    englishVoice = bestVoice(voices);
+  }
+  // Populate dropdown
+  const sel = document.getElementById('voiceSelect');
+  if (!sel) return;
+  const enVoices = voices
+    .filter(v => v.lang && v.lang.toLowerCase().startsWith('en'))
+    .sort((a, b) => scoreVoice(b) - scoreVoice(a));
+  sel.innerHTML = '<option value="">自動挑最高品質' + (englishVoice ? `（目前：${englishVoice.name}）` : '') + '</option>';
+  for (const v of enVoices) {
+    const opt = document.createElement('option');
+    opt.value = v.voiceURI;
+    const tier = scoreVoice(v) >= 80 ? ' ⭐' : '';
+    opt.textContent = `${v.name} · ${v.lang}${tier}`;
+    if (v.voiceURI === state.voiceURI) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
 if ('speechSynthesis' in window) {
-  pickEnglishVoice();
-  speechSynthesis.onvoiceschanged = pickEnglishVoice;
+  refreshVoices();
+  speechSynthesis.onvoiceschanged = refreshVoices;
 }
 
 function speak(text, rate = 0.95) {
@@ -885,7 +947,7 @@ function speak(text, rate = 0.95) {
   }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'en-US';
+  u.lang = englishVoice ? englishVoice.lang : 'en-US';
   u.rate = rate;
   u.pitch = 1.0;
   if (englishVoice) u.voice = englishVoice;
@@ -927,6 +989,15 @@ function bindEvents() {
   $('topic').addEventListener('change', (e) => {
     state.topic = e.target.value.trim();
     saveSettings();
+  });
+
+  // Voice
+  $('voiceSelect').addEventListener('change', (e) => {
+    state.voiceURI = e.target.value;
+    saveSettings();
+    refreshVoices();
+    // Audio preview of the chosen voice
+    if (englishVoice) speak('Hello, this is your voice preview.', 0.95);
   });
 
   // Generate
@@ -1009,6 +1080,9 @@ function init() {
   document.querySelectorAll('#levelGroup .pill').forEach(b => {
     b.classList.toggle('active', b.dataset.level === state.level);
   });
+
+  // Populate voice picker (re-runs when voices load async)
+  if ('speechSynthesis' in window) refreshVoices();
 
   bindEvents();
 
