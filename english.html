@@ -520,11 +520,11 @@
         <input type="text" id="topic" placeholder="例如：商業、旅遊、科技、日常對話、新聞…">
       </div>
       <div class="form-row">
-        <label>OpenAI Key (選填)</label>
-        <input type="password" id="openaiKey" placeholder="sk-... 留空則用瀏覽器內建語音" autocomplete="off">
+        <label>OpenAI Key</label>
+        <input type="password" id="openaiKey" placeholder="sk-..." autocomplete="off">
       </div>
       <div class="info-msg" style="grid-column: 2; margin-left: 122px; margin-top: -4px;">
-        填入 OpenAI API Key 可改用真人感語音（tts-1-hd）。每段例句約 NT$0.1、文章約 NT$0.85。同一段文字第二次播放會從本機快取讀取，不再付費。
+        所有發音使用 OpenAI tts-1-hd 真人語音。每段例句約 NT$0.1、文章約 NT$0.85。同一段文字第二次播放會從本機快取讀取，不再付費。
       </div>
       <div class="form-row" id="openaiVoiceRow">
         <label>OpenAI 語音</label>
@@ -536,13 +536,6 @@
           <option value="onyx">onyx · 低沉男聲</option>
           <option value="shimmer">shimmer · 友善女聲</option>
         </select>
-      </div>
-      <div class="form-row">
-        <label>語音 (瀏覽器)</label>
-        <select id="voiceSelect"><option value="">自動挑最高品質</option></select>
-      </div>
-      <div class="info-msg" style="grid-column: 2; margin-left: 122px;">
-        若沒填 OpenAI Key 則用此處選擇的瀏覽器內建語音。iOS 用戶可到「<b>設定 → 輔助使用 → 口說內容 → 聲音 → 英文</b>」下載「Ava (進階)」等高品質語音。
       </div>
     </div>
   </details>
@@ -616,7 +609,6 @@ const state = {
   model: 'claude-opus-4-7',
   level: 'B1-B2',
   topic: '',
-  voiceURI: '',
   openaiKey: '',
   openaiVoice: 'nova',
   openaiModel: 'tts-1-hd',
@@ -644,7 +636,6 @@ function loadSettings() {
     if (s.model) state.model = s.model;
     if (s.level) state.level = s.level;
     if (s.topic) state.topic = s.topic;
-    if (s.voiceURI) state.voiceURI = s.voiceURI;
     if (s.openaiKey) state.openaiKey = s.openaiKey;
     if (s.openaiVoice) state.openaiVoice = s.openaiVoice;
     if (s.openaiModel) state.openaiModel = s.openaiModel;
@@ -656,7 +647,6 @@ function saveSettings() {
     model: state.model,
     level: state.level,
     topic: state.topic,
-    voiceURI: state.voiceURI,
     openaiKey: state.openaiKey,
     openaiVoice: state.openaiVoice,
     openaiModel: state.openaiModel,
@@ -901,72 +891,6 @@ function renderHistory() {
   });
 }
 
-// ---------- Speech ----------
-let englishVoice = null;
-
-function scoreVoice(v) {
-  const name = (v.name || '').toLowerCase();
-  const uri = (v.voiceURI || '').toLowerCase();
-  if (!v.lang || !v.lang.toLowerCase().startsWith('en')) return -1;
-  let score = 0;
-  // Apple iOS quality tiers
-  if (name.includes('premium') || uri.includes('premium')) score += 100;
-  else if (name.includes('enhanced') || uri.includes('enhanced')) score += 80;
-  // Google / Cloud neural voices
-  if (name.includes('wavenet') || name.includes('neural2')) score += 90;
-  else if (name.includes('neural') || name.includes('natural')) score += 70;
-  // iOS 17+ Siri voice names tend to be higher quality
-  const siriNames = ['ava', 'evan', 'zoe', 'nathan', 'joelle', 'noelle', 'serena'];
-  if (siriNames.some(n => name.includes(n))) score += 30;
-  // Cloud / network voices usually beat local
-  if (v.localService === false) score += 15;
-  // Locale preference
-  if (v.lang === 'en-US') score += 20;
-  else if (v.lang === 'en-GB' || v.lang === 'en-AU') score += 10;
-  else score += 3;
-  return score;
-}
-
-function bestVoice(voices) {
-  let best = null;
-  let bestScore = -1;
-  for (const v of voices) {
-    const s = scoreVoice(v);
-    if (s > bestScore) { bestScore = s; best = v; }
-  }
-  return best;
-}
-
-function refreshVoices() {
-  const voices = speechSynthesis.getVoices();
-  // Apply user choice, else best available
-  if (state.voiceURI) {
-    englishVoice = voices.find(v => v.voiceURI === state.voiceURI) || bestVoice(voices);
-  } else {
-    englishVoice = bestVoice(voices);
-  }
-  // Populate dropdown
-  const sel = document.getElementById('voiceSelect');
-  if (!sel) return;
-  const enVoices = voices
-    .filter(v => v.lang && v.lang.toLowerCase().startsWith('en'))
-    .sort((a, b) => scoreVoice(b) - scoreVoice(a));
-  sel.innerHTML = '<option value="">自動挑最高品質' + (englishVoice ? `（目前：${englishVoice.name}）` : '') + '</option>';
-  for (const v of enVoices) {
-    const opt = document.createElement('option');
-    opt.value = v.voiceURI;
-    const tier = scoreVoice(v) >= 80 ? ' ⭐' : '';
-    opt.textContent = `${v.name} · ${v.lang}${tier}`;
-    if (v.voiceURI === state.voiceURI) opt.selected = true;
-    sel.appendChild(opt);
-  }
-}
-
-if ('speechSynthesis' in window) {
-  refreshVoices();
-  speechSynthesis.onvoiceschanged = refreshVoices;
-}
-
 // ---------- OpenAI TTS + audio cache ----------
 const audioCacheMem = new Map(); // key -> ArrayBuffer
 let currentAudio = null;
@@ -1054,7 +978,11 @@ function playArrayBuffer(buffer) {
   });
 }
 
-async function speakOpenAI(text) {
+async function speak(text) {
+  if (!state.openaiKey || !state.openaiKey.startsWith('sk-')) {
+    showError('請先在「設定」中填入 OpenAI API Key');
+    return;
+  }
   const voice = state.openaiVoice || 'nova';
   const model = state.openaiModel || 'tts-1-hd';
   const key = ttsCacheKey(text, voice, model);
@@ -1064,8 +992,7 @@ async function speakOpenAI(text) {
       buf = await fetchOpenAITTS(text, voice, model);
       setTTSCache(key, buf);
     } catch (e) {
-      showError('OpenAI TTS 失敗：' + e.message + '（已改用瀏覽器內建語音）');
-      speakBrowser(text);
+      showError('OpenAI TTS 失敗：' + e.message);
       return;
     }
   }
@@ -1076,31 +1003,7 @@ async function speakOpenAI(text) {
   }
 }
 
-// ---------- Browser SpeechSynthesis ----------
-function speakBrowser(text, rate = 0.95) {
-  if (!('speechSynthesis' in window)) {
-    showError('您的瀏覽器不支援語音合成');
-    return;
-  }
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = englishVoice ? englishVoice.lang : 'en-US';
-  u.rate = rate;
-  u.pitch = 1.0;
-  if (englishVoice) u.voice = englishVoice;
-  speechSynthesis.speak(u);
-}
-
-// ---------- Dispatch ----------
-function speak(text, rate = 0.95) {
-  if (state.openaiKey && state.openaiKey.startsWith('sk-')) {
-    speakOpenAI(text);
-  } else {
-    speakBrowser(text, rate);
-  }
-}
 function stopSpeaking() {
-  if ('speechSynthesis' in window) speechSynthesis.cancel();
   if (currentAudio) { try { currentAudio.pause(); } catch (e) {} currentAudio = null; }
 }
 
@@ -1138,29 +1041,17 @@ function bindEvents() {
     saveSettings();
   });
 
-  // Voice (browser)
-  $('voiceSelect').addEventListener('change', (e) => {
-    state.voiceURI = e.target.value;
-    saveSettings();
-    refreshVoices();
-    if (englishVoice && !(state.openaiKey && state.openaiKey.startsWith('sk-'))) {
-      speakBrowser('Hello, this is your voice preview.', 0.95);
-    }
-  });
-
   // OpenAI key
   $('openaiKey').addEventListener('change', (e) => {
     state.openaiKey = e.target.value.trim();
     saveSettings();
   });
 
-  // OpenAI voice
+  // OpenAI voice (auto-preview)
   $('openaiVoice').addEventListener('change', (e) => {
     state.openaiVoice = e.target.value;
     saveSettings();
-    if (state.openaiKey && state.openaiKey.startsWith('sk-')) {
-      speakOpenAI('Hello, this is your voice preview.');
-    }
+    speak('Hello, this is your voice preview.');
   });
 
   // Generate
@@ -1195,17 +1086,17 @@ function bindEvents() {
   document.addEventListener('click', (e) => {
     const speakBtn = e.target.closest('.word-speak');
     if (speakBtn) {
-      speak(speakBtn.dataset.word, 0.9);
+      speak(speakBtn.dataset.word);
       return;
     }
     const example = e.target.closest('.word-example');
     if (example && example.dataset.example) {
-      speak(example.dataset.example, 0.95);
+      speak(example.dataset.example);
       return;
     }
     const vocab = e.target.closest('.vocab');
     if (vocab && vocab.dataset.word) {
-      speak(vocab.dataset.word, 0.9);
+      speak(vocab.dataset.word);
       return;
     }
   });
@@ -1214,7 +1105,7 @@ function bindEvents() {
   $('speakArticleBtn').addEventListener('click', () => {
     if (state.currentLesson && state.currentLesson.article) {
       const text = state.currentLesson.article.content.replace(/\*\*/g, '');
-      speak(text, 0.95);
+      speak(text);
     }
   });
   $('stopSpeakBtn').addEventListener('click', stopSpeaking);
@@ -1245,9 +1136,6 @@ function init() {
   document.querySelectorAll('#levelGroup .pill').forEach(b => {
     b.classList.toggle('active', b.dataset.level === state.level);
   });
-
-  // Populate voice picker (re-runs when voices load async)
-  if ('speechSynthesis' in window) refreshVoices();
 
   bindEvents();
 
