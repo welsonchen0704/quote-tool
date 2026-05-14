@@ -428,6 +428,30 @@
     font-size: 13px;
   }
 
+  /* Notion sync badge */
+  .sync-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .sync-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+  }
+  .sync-badge.ok    { color: var(--moss-light); border-color: rgba(122,173,94,0.4); background: rgba(90,122,74,0.12); }
+  .sync-badge.warn  { color: var(--orange);     border-color: rgba(212,121,58,0.4); background: rgba(212,121,58,0.10); }
+  .sync-badge.err   { color: #E68080;           border-color: rgba(196,64,64,0.4);  background: rgba(196,64,64,0.10); }
+  .sync-badge.idle  { color: var(--text-dim); }
+
   /* Collapse */
   details summary {
     cursor: pointer;
@@ -537,6 +561,17 @@
           <option value="shimmer">shimmer · 友善女聲</option>
         </select>
       </div>
+      <div class="form-row">
+        <label>Notion Worker URL</label>
+        <input type="text" id="notionWorkerUrl" placeholder="https://english-notion.xxx.workers.dev" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <label>Notion Database ID</label>
+        <input type="text" id="notionDatabaseId" placeholder="32 字元，從 Notion 資料庫網址複製" autocomplete="off">
+      </div>
+      <div class="info-msg" style="grid-column: 2; margin-left: 122px;">
+        填入後會在每天生成完自動把單字、文章存到 Notion。需先依 <a href="https://github.com/welsonchen0704/quote-tool/blob/main/notion-worker/README.md" target="_blank">notion-worker/README</a> 設定 Notion 資料庫與 Cloudflare Worker。
+      </div>
     </div>
   </details>
 
@@ -556,6 +591,13 @@
 
   <!-- Today's lesson -->
   <div id="lessonView" style="display: none;">
+
+    <!-- Sync status -->
+    <div class="sync-row" id="syncRow" style="display: none;">
+      <span class="sync-badge idle" id="syncBadge">未同步</span>
+      <button class="btn-icon" id="resyncBtn" style="display: none;">重新同步</button>
+      <a class="btn-icon" id="openNotionBtn" target="_blank" style="display: none;">在 Notion 開啟 ↗</a>
+    </div>
 
     <!-- Words -->
     <div class="card">
@@ -612,7 +654,10 @@ const state = {
   openaiKey: '',
   openaiVoice: 'nova',
   openaiModel: 'tts-1-hd',
+  notionWorkerUrl: '',
+  notionDatabaseId: '',
   currentLesson: null,
+  currentDateKey: null,
 };
 
 // ---------- Date helpers ----------
@@ -639,6 +684,8 @@ function loadSettings() {
     if (s.openaiKey) state.openaiKey = s.openaiKey;
     if (s.openaiVoice) state.openaiVoice = s.openaiVoice;
     if (s.openaiModel) state.openaiModel = s.openaiModel;
+    if (s.notionWorkerUrl) state.notionWorkerUrl = s.notionWorkerUrl;
+    if (s.notionDatabaseId) state.notionDatabaseId = s.notionDatabaseId;
   } catch (e) {}
 }
 function saveSettings() {
@@ -650,6 +697,8 @@ function saveSettings() {
     openaiKey: state.openaiKey,
     openaiVoice: state.openaiVoice,
     openaiModel: state.openaiModel,
+    notionWorkerUrl: state.notionWorkerUrl,
+    notionDatabaseId: state.notionDatabaseId,
   }));
 }
 function loadLesson(dateKey) {
@@ -834,10 +883,18 @@ function renderLesson(lesson) {
   if (!lesson) {
     $('lessonView').style.display = 'none';
     $('emptyState').style.display = 'block';
+    setSyncStatus('idle');
     return;
   }
   $('emptyState').style.display = 'none';
   $('lessonView').style.display = 'block';
+
+  // Sync status from saved lesson metadata
+  if (lesson._notion && lesson._notion.url) {
+    setSyncStatus('ok', { url: lesson._notion.url });
+  } else {
+    setSyncStatus('warn');
+  }
 
   // Words
   const wordList = $('wordList');
@@ -906,11 +963,149 @@ function renderHistory() {
     `;
     item.onclick = () => {
       state.currentLesson = lesson;
+      state.currentDateKey = dateKey;
       renderLesson(lesson);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     list.appendChild(item);
   });
+}
+
+// ---------- Notion sync ----------
+function notionRichText(s) {
+  // Notion rich_text items cap at 2000 chars; chunk if needed.
+  const max = 1900;
+  const out = [];
+  for (let i = 0; i < (s || '').length; i += max) {
+    out.push({ type: 'text', text: { content: s.slice(i, i + max) } });
+  }
+  if (out.length === 0) out.push({ type: 'text', text: { content: '' } });
+  return out;
+}
+function nbHeading(text, level = 2) {
+  const key = 'heading_' + level;
+  return { type: key, [key]: { rich_text: notionRichText(text) } };
+}
+function nbParagraph(text) {
+  return { type: 'paragraph', paragraph: { rich_text: notionRichText(text) } };
+}
+function nbCallout(emoji, text) {
+  return {
+    type: 'callout',
+    callout: { icon: { type: 'emoji', emoji }, rich_text: notionRichText(text) },
+  };
+}
+function nbDivider() { return { type: 'divider', divider: {} }; }
+
+function buildNotionPage(dateKey, lesson) {
+  const properties = {
+    'Title': { title: notionRichText(lesson.title || dateKey) },
+    'Date': { date: { start: dateKey } },
+    'Level': { select: { name: state.level } },
+    'Topic': { rich_text: notionRichText(state.topic.trim() || '通用') },
+    'Words': { multi_select: (lesson.words || []).slice(0, 10).map(w => ({ name: (w.word || '').slice(0, 100) })) },
+  };
+
+  const children = [];
+  children.push(nbHeading('今日五個單字', 2));
+  for (const w of (lesson.words || [])) {
+    children.push(nbCallout(
+      '📘',
+      `${w.word}  ${w.phonetic || ''}  (${w.partOfSpeech || ''})\n${w.meaning || ''}`,
+    ));
+    if (w.example) children.push(nbParagraph('▸ ' + w.example));
+    if (w.exampleZh) children.push(nbParagraph('  ' + w.exampleZh));
+  }
+  children.push(nbDivider());
+  children.push(nbHeading(lesson.title || 'Article', 2));
+  if (lesson.titleZh) children.push(nbParagraph(lesson.titleZh));
+  // Strip the **highlight** markers from the article body when sending to Notion
+  const plainArticle = (lesson.article && lesson.article.content || '').replace(/\*\*([^*]+)\*\*/g, '$1');
+  children.push(nbParagraph(plainArticle));
+  children.push(nbHeading('中文翻譯', 2));
+  children.push(nbParagraph((lesson.article && lesson.article.contentZh) || ''));
+
+  return {
+    parent: { database_id: state.notionDatabaseId },
+    properties,
+    children,
+  };
+}
+
+async function syncToNotion(dateKey, lesson) {
+  if (!state.notionWorkerUrl || !state.notionDatabaseId) {
+    return { skipped: true };
+  }
+  const url = state.notionWorkerUrl.replace(/\/+$/, '') + '/pages';
+  const payload = buildNotionPage(dateKey, lesson);
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    let msg = `HTTP ${resp.status}`;
+    try {
+      const j = await resp.json();
+      if (j.error && j.error.message) msg = j.error.message;
+    } catch (e) {}
+    throw new Error(msg);
+  }
+  const data = await resp.json();
+  return { id: data.id, url: data.url };
+}
+
+function setSyncStatus(status, info) {
+  // status: 'idle' | 'syncing' | 'ok' | 'err' | 'warn'
+  const row = $('syncRow');
+  const badge = $('syncBadge');
+  const resync = $('resyncBtn');
+  const open = $('openNotionBtn');
+
+  if (!state.notionWorkerUrl || !state.notionDatabaseId) {
+    row.style.display = 'none';
+    return;
+  }
+  row.style.display = 'flex';
+  badge.className = 'sync-badge ' + (status === 'syncing' ? 'idle' : status);
+  badge.textContent = ({
+    idle: '尚未同步 Notion',
+    syncing: '⟳ 同步中…',
+    ok: '✓ 已同步到 Notion',
+    err: '✗ 同步失敗',
+    warn: '尚未同步',
+  })[status] || status;
+
+  resync.style.display = (status === 'err' || status === 'warn') ? 'inline-flex' : 'none';
+  if (info && info.url) {
+    open.href = info.url;
+    open.style.display = 'inline-flex';
+  } else {
+    open.style.display = 'none';
+  }
+  if (status === 'err' && info && info.message) {
+    badge.title = info.message;
+    badge.textContent += ' · ' + info.message.slice(0, 60);
+  }
+}
+
+async function trySyncToNotion(dateKey, lesson) {
+  if (!state.notionWorkerUrl || !state.notionDatabaseId) {
+    setSyncStatus('idle');
+    return;
+  }
+  setSyncStatus('syncing');
+  try {
+    const result = await syncToNotion(dateKey, lesson);
+    if (result.skipped) { setSyncStatus('idle'); return; }
+    // Persist sync info on the lesson
+    lesson._notion = { id: result.id, url: result.url, syncedAt: new Date().toISOString() };
+    saveLesson(dateKey, lesson);
+    setSyncStatus('ok', { url: result.url });
+  } catch (e) {
+    setSyncStatus('err', { message: e.message });
+  }
 }
 
 // ---------- OpenAI TTS + audio cache ----------
@@ -1096,6 +1291,23 @@ function bindEvents() {
     speak('Hello, this is your voice preview.');
   });
 
+  // Notion settings
+  $('notionWorkerUrl').addEventListener('input', (e) => {
+    state.notionWorkerUrl = e.target.value.trim();
+    saveSettings();
+  });
+  $('notionDatabaseId').addEventListener('input', (e) => {
+    state.notionDatabaseId = e.target.value.trim();
+    saveSettings();
+  });
+
+  // Re-sync button
+  $('resyncBtn').addEventListener('click', () => {
+    if (state.currentLesson && state.currentDateKey) {
+      trySyncToNotion(state.currentDateKey, state.currentLesson);
+    }
+  });
+
   // Generate
   $('generateBtn').addEventListener('click', async () => {
     clearError();
@@ -1110,8 +1322,11 @@ function bindEvents() {
         const key = todayKey();
         saveLesson(key, lesson);
         state.currentLesson = lesson;
+        state.currentDateKey = key;
         renderLesson(lesson);
         renderHistory();
+        // Fire-and-forget Notion sync (status displays via setSyncStatus)
+        trySyncToNotion(key, lesson);
       } else {
         $('emptyState').style.display = 'block';
       }
@@ -1172,6 +1387,8 @@ function init() {
   $('topic').value = state.topic;
   $('openaiKey').value = state.openaiKey;
   $('openaiVoice').value = state.openaiVoice;
+  $('notionWorkerUrl').value = state.notionWorkerUrl;
+  $('notionDatabaseId').value = state.notionDatabaseId;
   document.querySelectorAll('#modelGroup .pill').forEach(b => {
     b.classList.toggle('active', b.dataset.model === state.model);
   });
@@ -1185,6 +1402,7 @@ function init() {
   const today = loadLesson(todayKey());
   if (today) {
     state.currentLesson = today;
+    state.currentDateKey = todayKey();
     renderLesson(today);
   }
   renderHistory();
