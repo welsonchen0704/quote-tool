@@ -1036,7 +1036,11 @@ async function syncToNotion(dateKey, lesson) {
   if (!state.notionWorkerUrl || !state.notionDatabaseId) {
     return { skipped: true };
   }
-  const url = state.notionWorkerUrl.replace(/\/+$/, '') + '/pages';
+  // Auto-prefix https:// if missing — otherwise the browser treats the URL as
+  // relative and POSTs to GitHub Pages, which returns 405.
+  let workerUrl = state.notionWorkerUrl.trim();
+  if (!/^https?:\/\//i.test(workerUrl)) workerUrl = 'https://' + workerUrl;
+  const url = workerUrl.replace(/\/+$/, '') + '/pages';
   const payload = buildNotionPage(dateKey, lesson);
 
   const resp = await fetch(url, {
