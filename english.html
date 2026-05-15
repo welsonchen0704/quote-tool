@@ -517,11 +517,11 @@
     </summary>
     <div style="margin-top: 16px;">
       <div class="form-row">
-        <label>API Key</label>
-        <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off">
+        <label>Worker URL</label>
+        <input type="text" id="workerUrl" placeholder="https://english-notion.xxx.workers.dev" autocomplete="off">
       </div>
       <div class="info-msg" style="grid-column: 2; margin-left: 122px;">
-        從 <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a> 取得 API Key。Key 只儲存在本機瀏覽器。
+        所有 API（Claude / OpenAI / Notion）皆透過你的 Cloudflare Worker。三把鑰匙 + Database ID 全部存在 Worker 的環境變數，瀏覽器永遠看不到。詳見 <a href="https://github.com/welsonchen0704/quote-tool/blob/main/notion-worker/README.md" target="_blank">notion-worker/README</a>。
       </div>
       <div class="form-row" style="margin-top: 14px;">
         <label>模型</label>
@@ -543,13 +543,6 @@
         <label>主題 (選填)</label>
         <input type="text" id="topic" placeholder="例如：商業、旅遊、科技、日常對話、新聞…">
       </div>
-      <div class="form-row">
-        <label>OpenAI Key</label>
-        <input type="password" id="openaiKey" placeholder="sk-..." autocomplete="off">
-      </div>
-      <div class="info-msg" style="grid-column: 2; margin-left: 122px; margin-top: -4px;">
-        所有發音使用 OpenAI tts-1-hd 真人語音。每段例句約 NT$0.1、文章約 NT$0.85。同一段文字第二次播放會從本機快取讀取，不再付費。
-      </div>
       <div class="form-row" id="openaiVoiceRow">
         <label>OpenAI 語音</label>
         <select id="openaiVoice">
@@ -560,17 +553,6 @@
           <option value="onyx">onyx · 低沉男聲</option>
           <option value="shimmer">shimmer · 友善女聲</option>
         </select>
-      </div>
-      <div class="form-row">
-        <label>Notion Worker URL</label>
-        <input type="text" id="notionWorkerUrl" placeholder="https://english-notion.xxx.workers.dev" autocomplete="off">
-      </div>
-      <div class="form-row">
-        <label>Notion Database ID</label>
-        <input type="text" id="notionDatabaseId" placeholder="32 字元，從 Notion 資料庫網址複製" autocomplete="off">
-      </div>
-      <div class="info-msg" style="grid-column: 2; margin-left: 122px;">
-        填入後會在每天生成完自動把單字、文章存到 Notion。需先依 <a href="https://github.com/welsonchen0704/quote-tool/blob/main/notion-worker/README.md" target="_blank">notion-worker/README</a> 設定 Notion 資料庫與 Cloudflare Worker。
       </div>
     </div>
   </details>
@@ -647,15 +629,12 @@ const STORAGE_PREFIX = 'english-lesson-';
 const SETTINGS_KEY = 'english-settings';
 
 const state = {
-  apiKey: '',
+  workerUrl: '',
   model: 'claude-opus-4-7',
   level: 'B1-B2',
   topic: '',
-  openaiKey: '',
   openaiVoice: 'nova',
   openaiModel: 'tts-1-hd',
-  notionWorkerUrl: '',
-  notionDatabaseId: '',
   currentLesson: null,
   currentDateKey: null,
 };
@@ -677,29 +656,32 @@ function formatDisplayDate(key) {
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-    if (s.apiKey) state.apiKey = s.apiKey;
+    // Migration: accept old notionWorkerUrl key
+    if (s.workerUrl) state.workerUrl = s.workerUrl;
+    else if (s.notionWorkerUrl) state.workerUrl = s.notionWorkerUrl;
     if (s.model) state.model = s.model;
     if (s.level) state.level = s.level;
     if (s.topic) state.topic = s.topic;
-    if (s.openaiKey) state.openaiKey = s.openaiKey;
     if (s.openaiVoice) state.openaiVoice = s.openaiVoice;
     if (s.openaiModel) state.openaiModel = s.openaiModel;
-    if (s.notionWorkerUrl) state.notionWorkerUrl = s.notionWorkerUrl;
-    if (s.notionDatabaseId) state.notionDatabaseId = s.notionDatabaseId;
   } catch (e) {}
 }
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-    apiKey: state.apiKey,
+    workerUrl: state.workerUrl,
     model: state.model,
     level: state.level,
     topic: state.topic,
-    openaiKey: state.openaiKey,
     openaiVoice: state.openaiVoice,
     openaiModel: state.openaiModel,
-    notionWorkerUrl: state.notionWorkerUrl,
-    notionDatabaseId: state.notionDatabaseId,
   }));
+}
+
+function getWorkerUrl() {
+  let u = (state.workerUrl || '').trim();
+  if (!u) return '';
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u.replace(/\/+$/, '');
 }
 function loadLesson(dateKey) {
   try {
@@ -813,8 +795,9 @@ function recentTaughtWords(days = 60, max = 300) {
 }
 
 async function generateLesson() {
-  if (!state.apiKey || !state.apiKey.startsWith('sk-ant-')) {
-    showError('請先在「設定」中輸入有效的 Anthropic API Key（sk-ant- 開頭）');
+  const workerUrl = getWorkerUrl();
+  if (!workerUrl) {
+    showError('請先在「設定」中填入 Worker URL');
     $('settingsCard').open = true;
     return null;
   }
@@ -840,14 +823,9 @@ ${avoidLine}
     },
   };
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  const resp = await fetch(workerUrl + '/claude/messages', {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': state.apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
@@ -1006,6 +984,7 @@ function buildNotionPage(dateKey, lesson) {
     'Words': { multi_select: (lesson.words || []).slice(0, 10).map(w => ({ name: (w.word || '').slice(0, 100) })) },
   };
 
+  // parent.database_id is injected by the Worker from env.NOTION_DATABASE_ID
   const children = [];
   children.push(nbHeading('今日五個單字', 2));
   for (const w of (lesson.words || [])) {
@@ -1025,22 +1004,14 @@ function buildNotionPage(dateKey, lesson) {
   children.push(nbHeading('中文翻譯', 2));
   children.push(nbParagraph((lesson.article && lesson.article.contentZh) || ''));
 
-  return {
-    parent: { database_id: state.notionDatabaseId },
-    properties,
-    children,
-  };
+  // No parent — Worker injects parent.database_id from env.NOTION_DATABASE_ID
+  return { properties, children };
 }
 
 async function syncToNotion(dateKey, lesson) {
-  if (!state.notionWorkerUrl || !state.notionDatabaseId) {
-    return { skipped: true };
-  }
-  // Auto-prefix https:// if missing — otherwise the browser treats the URL as
-  // relative and POSTs to GitHub Pages, which returns 405.
-  let workerUrl = state.notionWorkerUrl.trim();
-  if (!/^https?:\/\//i.test(workerUrl)) workerUrl = 'https://' + workerUrl;
-  const url = workerUrl.replace(/\/+$/, '') + '/pages';
+  const workerUrl = getWorkerUrl();
+  if (!workerUrl) return { skipped: true };
+  const url = workerUrl + '/notion/pages';
   const payload = buildNotionPage(dateKey, lesson);
 
   const resp = await fetch(url, {
@@ -1067,7 +1038,7 @@ function setSyncStatus(status, info) {
   const resync = $('resyncBtn');
   const open = $('openNotionBtn');
 
-  if (!state.notionWorkerUrl || !state.notionDatabaseId) {
+  if (!getWorkerUrl()) {
     row.style.display = 'none';
     return;
   }
@@ -1095,7 +1066,7 @@ function setSyncStatus(status, info) {
 }
 
 async function trySyncToNotion(dateKey, lesson) {
-  if (!state.notionWorkerUrl || !state.notionDatabaseId) {
+  if (!getWorkerUrl()) {
     setSyncStatus('idle');
     return;
   }
@@ -1184,12 +1155,11 @@ function setTTSCache(key, buffer) {
 }
 
 async function fetchOpenAITTS(text, voice, model) {
-  const resp = await fetch('https://api.openai.com/v1/audio/speech', {
+  const workerUrl = getWorkerUrl();
+  if (!workerUrl) throw new Error('請先在「設定」中填入 Worker URL');
+  const resp = await fetch(workerUrl + '/openai/audio/speech', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + state.openaiKey,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, input: text, voice, response_format: 'mp3' }),
   });
   if (!resp.ok) {
@@ -1204,8 +1174,8 @@ async function fetchOpenAITTS(text, voice, model) {
 }
 
 async function speak(text) {
-  if (!state.openaiKey || !state.openaiKey.startsWith('sk-')) {
-    showError('請先在「設定」中填入 OpenAI API Key');
+  if (!getWorkerUrl()) {
+    showError('請先在「設定」中填入 Worker URL');
     return;
   }
 
@@ -1250,9 +1220,9 @@ function stopSpeaking() {
 
 // ---------- Event handlers ----------
 function bindEvents() {
-  // API key (use 'input' so it saves on every keystroke, not just blur)
-  $('apiKey').addEventListener('input', (e) => {
-    state.apiKey = e.target.value.trim();
+  // Worker URL (the only credential the browser needs to know)
+  $('workerUrl').addEventListener('input', (e) => {
+    state.workerUrl = e.target.value.trim();
     saveSettings();
   });
 
@@ -1282,27 +1252,11 @@ function bindEvents() {
     saveSettings();
   });
 
-  // OpenAI key (use 'input' so paste-then-tap-button saves immediately)
-  $('openaiKey').addEventListener('input', (e) => {
-    state.openaiKey = e.target.value.trim();
-    saveSettings();
-  });
-
   // OpenAI voice (auto-preview)
   $('openaiVoice').addEventListener('change', (e) => {
     state.openaiVoice = e.target.value;
     saveSettings();
     speak('Hello, this is your voice preview.');
-  });
-
-  // Notion settings
-  $('notionWorkerUrl').addEventListener('input', (e) => {
-    state.notionWorkerUrl = e.target.value.trim();
-    saveSettings();
-  });
-  $('notionDatabaseId').addEventListener('input', (e) => {
-    state.notionDatabaseId = e.target.value.trim();
-    saveSettings();
   });
 
   // Re-sync button
@@ -1387,12 +1341,9 @@ function bindEvents() {
 function init() {
   $('todayDate').textContent = formatDisplayDate(todayKey());
   loadSettings();
-  $('apiKey').value = state.apiKey;
+  $('workerUrl').value = state.workerUrl;
   $('topic').value = state.topic;
-  $('openaiKey').value = state.openaiKey;
   $('openaiVoice').value = state.openaiVoice;
-  $('notionWorkerUrl').value = state.notionWorkerUrl;
-  $('notionDatabaseId').value = state.notionDatabaseId;
   document.querySelectorAll('#modelGroup .pill').forEach(b => {
     b.classList.toggle('active', b.dataset.model === state.model);
   });

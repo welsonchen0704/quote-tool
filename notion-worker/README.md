@@ -1,59 +1,90 @@
-# Notion Worker — 設定步驟
+# Cloudflare Worker — 統一 API 代理
 
-讓 `english.html` 把每天的單字課程同步到 Notion 資料庫。
+讓 `english.html` 透過你的 Cloudflare Worker 呼叫 **Claude / OpenAI / Notion** 三家 API。所有金鑰都鎖在 Cloudflare 環境變數，瀏覽器只需要記得 Worker URL。
 
 ---
 
-## 1. 建立 Notion Integration（取得 Token）
+## 一次性設定
 
-1. 打開 https://www.notion.so/my-integrations
+### 1. Notion Integration（取得 token）
+
+1. 開 https://www.notion.so/profile/integrations
 2. 點 **+ New integration**
 3. 名稱填 `English Daily`，Workspace 選你的，Type 選 **Internal**
-4. 點 **Save** → 複製 **Internal Integration Secret**（`ntn_...` 開頭，等下要用）
+4. 點 **Save** → 複製 **Internal Integration Secret**（`ntn_...` 開頭）
 
-## 2. 建立 Notion 資料庫
+### 2. Notion 資料庫
 
-在你想存放的頁面，新增一個 **Full page database**，命名隨意（例如「每日英文」）。
-資料庫的「Properties」必須**完全照下面這個 schema 建立**（屬性名稱大小寫要一樣）：
+在你想存放的頁面新增一個 **Full page database**，命名「每日英文」。Properties **必須**照下列 schema：
 
-| Property name | Type | 用途 |
-|---|---|---|
-| `Title` | Title | 文章英文標題 |
-| `Date` | Date | 學習日期 |
-| `Level` | Select | 難度（A1-A2 / B1-B2 / C1-C2） |
-| `Topic` | Rich text | 主題 |
-| `Words` | Multi-select | 5 個目標單字 |
-
-> Notion 新建資料庫預設會有一個 `Name` 標題欄 — **把它改名為 `Title`**，不要新增另一個。
+| Property name | Type |
+|---|---|
+| `Title` | Title（把預設的 `Name` 改名為 `Title`） |
+| `Date` | Date |
+| `Level` | Select |
+| `Topic` | Rich text |
+| `Words` | Multi-select |
 
 建好後：
-- 點資料庫右上 **⋯ → Connections → Add connection** → 選剛剛建的 `English Daily` integration
-- 從網址列複製 **Database ID**：`https://www.notion.so/<workspace>/<database-id>?v=...` 中間那一段 32 字元（含或不含 `-` 都行）
+- 點資料庫 **⋯ → Connections → Add → 選 English Daily**
+- 從網址列複製 **Database ID**（32 字元）
 
-## 3. 部署 Cloudflare Worker
+### 3. 部署 Cloudflare Worker
 
-1. 註冊 https://dash.cloudflare.com（免費）
-2. 左側 **Workers & Pages → Create → Create Worker**
-3. 名稱隨意（例如 `english-notion`），先 **Deploy** 預設範本
-4. Deploy 後點 **Edit code**，把編輯器內容**全部刪掉**，貼上 [`worker.js`](./worker.js) 的內容 → 右上 **Deploy**
-5. 回到 Worker 主頁 → **Settings → Variables and Secrets → Add**
-   - 加 `ALLOWED_ORIGIN` = `https://welsonchen0704.github.io`（type 選 Text）
-   - 加 `NOTION_TOKEN` = `ntn_...`（你的 integration secret，type 選 Secret）
-   - 兩個都加完按 **Deploy** 讓變數生效
-6. 複製 Worker URL（`https://english-notion.<your-subdomain>.workers.dev`）
+1. https://dash.cloudflare.com → **Workers & Pages → Create → Create Worker**
+2. 名稱 `english-notion`（或你喜歡的）→ Deploy
+3. **Edit code** → 全部刪除 → 貼上 [`worker.js`](./worker.js) 內容 → **Deploy**
+4. 回 Worker 主頁 → **Settings → Variables and Secrets → Add**，加 **5 個變數**：
 
-## 4. 在 app 設定填入
+| Variable name | Value | Type |
+|---|---|---|
+| `ALLOWED_ORIGIN` | `https://welsonchen0704.github.io` | Text |
+| `ANTHROPIC_API_KEY` | `sk-ant-...` | **Secret** |
+| `OPENAI_API_KEY` | `sk-...` | **Secret** |
+| `NOTION_TOKEN` | `ntn_...` | **Secret** |
+| `NOTION_DATABASE_ID` | 第 2 步的 32 字元 ID | Text |
+
+5. **務必按 Save and deploy** — 環境變數要重新部署才生效
+
+### 4. 在 app 填入
 
 打開 https://welsonchen0704.github.io/quote-tool/english.html → 設定：
-- **Notion Worker URL**：上面複製的 `https://...workers.dev`
-- **Notion Database ID**：步驟 2 取得的 32 字元 ID
 
-之後每天生成單字時，會自動同步到 Notion。手機開 Notion app 就能複習。
+| 欄位 | 值 |
+|---|---|
+| Worker URL | 上面 Cloudflare 給你的 `https://english-notion.<your-subdomain>.workers.dev` |
+
+**就這一個欄位**。所有 API 金鑰都在 Worker 端。
+
+---
+
+## 安全模型
+
+- 三家 API 金鑰只存在 Cloudflare 加密 secret 變數，瀏覽器永遠看不到、localStorage 也沒有
+- Origin 驗證只放行你的 GitHub Pages 網域
+- Worker 程式碼有端點白名單（不接其他亂 path）
+- 萬一 Worker URL 流出，攻擊者要呼叫到 API 還需要繞過 Origin 檢查（curl 可以、一般人不會）
+- 真要更安全的話可以再加 passcode header
+
+---
+
+## 端點對照
+
+| App 呼叫 | Worker 轉發到 | 用什麼金鑰 |
+|---|---|---|
+| `POST /claude/messages` | `https://api.anthropic.com/v1/messages` | `ANTHROPIC_API_KEY` |
+| `POST /openai/audio/speech` | `https://api.openai.com/v1/audio/speech` | `OPENAI_API_KEY` |
+| `POST /notion/pages` | `https://api.notion.com/v1/pages`（自動注入 `NOTION_DATABASE_ID`） | `NOTION_TOKEN` |
 
 ---
 
 ## 疑難排解
 
-- **403 Forbidden**：`ALLOWED_ORIGIN` 沒設或設錯。要正好是 `https://welsonchen0704.github.io`（沒有結尾斜線）
-- **401 Unauthorized**：Notion Token 無效，或資料庫沒有 share 給 integration（步驟 2 最後一步）
-- **400 property doesn't exist**：資料庫的 property 名稱跟 schema 不一致，請依照表格名稱重新建立
+| 錯誤訊息 | 原因 |
+|---|---|
+| `Forbidden: bad origin` | `ALLOWED_ORIGIN` 沒設或設錯（要剛好 `https://welsonchen0704.github.io`） |
+| `ANTHROPIC_API_KEY not configured on Worker` | Cloudflare 沒加 `ANTHROPIC_API_KEY` 環境變數，或加完沒 Deploy |
+| `OPENAI_API_KEY not configured on Worker` | 同上，加 `OPENAI_API_KEY` |
+| `NOTION_TOKEN not configured on Worker` | 同上，加 `NOTION_TOKEN` |
+| 401 from Notion | Token 失效 / 資料庫沒 share 給 integration |
+| `Path not allowed` | 程式碼出問題或 app 版本不一致；確認 Worker 已重新部署 |
