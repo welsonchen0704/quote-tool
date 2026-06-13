@@ -1648,13 +1648,28 @@
     persistEls[pe].addEventListener("change", saveSettings);
   }
 
+  // 亮度／對比的手動像素運算（取代 ctx.filter，確保 iOS Safari/Chrome 也生效）
+  // 語意對齊 CSS filter：先亮度（值×係數）再對比（以中灰 128 為軸縮放），用 256 階查表加速
+  function applyBrightnessContrast(brightness, contrast) {
+    var imgData = ctx.getImageData(0, 0, W, H);
+    var d = imgData.data;
+    var lut = new Uint8ClampedArray(256);
+    for (var i = 0; i < 256; i++) {
+      var v = i * brightness;             // 亮度
+      v = (v - 128) * contrast + 128;     // 對比
+      lut[i] = v;                         // Uint8ClampedArray 自動夾到 0–255
+    }
+    for (var p = 0; p < d.length; p += 4) {
+      d[p]     = lut[d[p]];
+      d[p + 1] = lut[d[p + 1]];
+      d[p + 2] = lut[d[p + 2]];
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
   // --- Render ---
   function render() {
     ctx.clearRect(0, 0, W, H);
-
-    var brightness = parseInt(brightnessSlider.value) / 100;
-    var contrast = parseInt(contrastSlider.value) / 100;
-    ctx.filter = "brightness(" + brightness + ") contrast(" + contrast + ")";
 
     if (uploadedImg) {
       var zoom = parseInt(imgZoomSlider.value) / 100;
@@ -1674,7 +1689,10 @@
       ctx.fillRect(0, 0, W, H);
     }
 
-    ctx.filter = "none";
+    // 亮度／對比：手動像素運算（iOS WebKit 的 ctx.filter 套在 drawImage 上會被忽略，故不依賴它）
+    var brightness = parseInt(brightnessSlider.value) / 100;
+    var contrast = parseInt(contrastSlider.value) / 100;
+    if (brightness !== 1 || contrast !== 1) applyBrightnessContrast(brightness, contrast);
 
     var opacity = parseInt(overlaySlider.value) / 100;
     var grad = ctx.createLinearGradient(0, H * 0.3, 0, H);
