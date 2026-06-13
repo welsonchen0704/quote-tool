@@ -495,6 +495,26 @@
   .quote-card-main { color: var(--gold); font-size: 13px; font-weight: 700; margin-bottom: 4px; line-height: 1.5; font-family: var(--font-serif); }
   .quote-card-sub { color: var(--text-mid); font-size: 11px; line-height: 1.6; }
   .quote-card-why { color: var(--text-dim); font-size: 10px; line-height: 1.5; margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--border-dim); letter-spacing: 0.3px; }
+  .quote-card-main { padding-right: 26px; }
+  .quote-fav-btn {
+    position: absolute; top: 6px; right: 6px;
+    width: 24px; height: 24px; padding: 0;
+    border: none; background: transparent;
+    color: var(--gold-dim); font-size: 16px; line-height: 1;
+    cursor: pointer; opacity: 0.5; transition: opacity 0.15s, color 0.15s;
+  }
+  .quote-fav-btn:hover { opacity: 1; }
+  .quote-fav-btn.saved { color: var(--gold); opacity: 1; }
+  .fav-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-dim); }
+  .fav-section-title { font-size: 11px; color: var(--text-dim); letter-spacing: 0.5px; margin-bottom: 8px; }
+  .fav-list { display: flex; flex-direction: column; gap: 6px; }
+  .fav-card { display: flex; align-items: flex-start; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-dim); border-radius: 8px; padding: 8px 10px; }
+  .fav-card-text { flex: 1; cursor: pointer; min-width: 0; }
+  .fav-card-text:hover .fav-card-main { color: var(--gold-dim); }
+  .fav-card-main { color: var(--gold); font-size: 12px; font-weight: 700; line-height: 1.4; font-family: var(--font-serif); }
+  .fav-card-sub { color: var(--text-mid); font-size: 10px; line-height: 1.5; margin-top: 2px; }
+  .fav-del-btn { border: none; background: transparent; color: var(--text-dim); font-size: 13px; cursor: pointer; padding: 2px 4px; flex-shrink: 0; }
+  .fav-del-btn:hover { color: var(--red); }
   .quote-refine-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
   .refine-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; }
   .refine-btn {
@@ -813,6 +833,10 @@
         <button class="refine-btn" data-hint="plain">更白話</button>
         <button class="refine-btn" data-hint="shorter">更短</button>
         <button class="refine-btn" data-hint="daily">更生活</button>
+      </div>
+      <div id="favSection" class="fav-section" style="display:none;">
+        <div class="fav-section-title">📌 我的收藏</div>
+        <div id="favList" class="fav-list"></div>
       </div>
     </div>
 
@@ -1258,6 +1282,7 @@
     document.getElementById("quoteList").innerHTML = "";
     var _qrr = document.getElementById("quoteRefineRow");
     if (_qrr) _qrr.style.display = "none";
+    renderFavorites();
     saveSettings();
   }
 
@@ -1342,6 +1367,7 @@
         + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
     }
     if (refineHint) prompt += '\n\n【這次的特別要求】' + refineHint + '\n用這個方向重出一批新的 5 組，不要重複上一批的句子。';
+    prompt += buildAvoidBlock(currentBrand);
 
     fetch(WORKER_URL, {
       method: "POST",
@@ -1366,28 +1392,7 @@
       var jsonEnd = text.lastIndexOf("]");
       if (jsonStart >= 0 && jsonEnd > jsonStart) { text = text.substring(jsonStart, jsonEnd + 1); }
       var quotes = JSON.parse(text);
-      for (var q = 0; q < quotes.length; q++) {
-        (function(quote) {
-          var card = document.createElement("div");
-          card.className = "quote-card";
-          var mainLines = quote.main.replace(/\\n/g, "\n").split("\n");
-          var subLines = quote.sub.replace(/\\n/g, "\n").split("\n");
-          card.innerHTML = '<div class="quote-card-main">' + mainLines.join("<br>") + '</div>' +
-                           '<div class="quote-card-sub">' + subLines.join("<br>") + '</div>' +
-                           (quote.why ? '<div class="quote-card-why">打中：' + quote.why + '</div>' : '');
-          card.addEventListener("click", function() {
-            mainTextEl.value = mainLines.join("\n");
-            subTextEl.value = subLines.join("\n");
-            render();
-            saveSettings();
-            var cards = quoteList.querySelectorAll(".quote-card");
-            for (var k = 0; k < cards.length; k++) cards[k].style.borderColor = "";
-            card.style.borderColor = "var(--gold)";
-            card.style.background = "rgba(201,148,58,0.07)";
-          });
-          quoteList.appendChild(card);
-        })(quotes[q]);
-      }
+      for (var q = 0; q < quotes.length; q++) { quoteList.appendChild(makeQuoteCard(quotes[q], "gold")); }
       if (refineRow) refineRow.style.display = "flex";
     })
     .catch(function(err) {
@@ -1467,6 +1472,7 @@
         + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
     }
     if (refineHint) visionPrompt += '\n\n【這次的特別要求】' + refineHint + '\n用這個方向重出一批新的 5 組，不要重複上一批的句子。';
+    visionPrompt += buildAvoidBlock(currentBrand);
 
     fetch(WORKER_URL, {
       method: "POST",
@@ -1499,27 +1505,7 @@
       var jsonEnd = text.lastIndexOf("]");
       if (jsonStart >= 0 && jsonEnd > jsonStart) { text = text.substring(jsonStart, jsonEnd + 1); }
       var quotes = JSON.parse(text);
-      for (var q = 0; q < quotes.length; q++) {
-        (function(quote) {
-          var card = document.createElement("div");
-          card.className = "quote-card";
-          var mainLines = quote.main.replace(/\\n/g, "\n").split("\n");
-          var subLines = quote.sub.replace(/\\n/g, "\n").split("\n");
-          card.innerHTML = '<div class="quote-card-main" style="color:var(--cyan)">' + mainLines.join("<br>") + '</div>' +
-                           '<div class="quote-card-sub">' + subLines.join("<br>") + '</div>' +
-                           (quote.why ? '<div class="quote-card-why">打中：' + quote.why + '</div>' : '');
-          card.addEventListener("click", function() {
-            mainTextEl.value = mainLines.join("\n");
-            subTextEl.value = subLines.join("\n");
-            render();
-            saveSettings();
-            var cards = quoteList.querySelectorAll(".quote-card");
-            for (var k = 0; k < cards.length; k++) cards[k].style.borderColor = "";
-            card.style.borderColor = "var(--cyan)";
-          });
-          quoteList.appendChild(card);
-        })(quotes[q]);
-      }
+      for (var q = 0; q < quotes.length; q++) { quoteList.appendChild(makeQuoteCard(quotes[q], "cyan")); }
       if (refineRow) refineRow.style.display = "flex";
     })
     .catch(function(err) {
@@ -1648,6 +1634,169 @@
     persistEls[pe].addEventListener("change", saveSettings);
   }
 
+  // ===== localStorage 共用工具（防重複記憶 + 收藏庫共用） =====
+  function lsGet(key, fallback) {
+    try { var v = JSON.parse(localStorage.getItem(key) || "null"); return (v == null) ? fallback : v; }
+    catch (e) { return fallback; }
+  }
+  function lsSet(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+
+  // ===== 防重複記憶：記錄各品牌「實際選用過」的主標，產生新語錄時當禁用清單 =====
+  var RECENT_KEY = "fengQuoteRecent_v1";
+  function recordRecentQuote(brand, mainText) {
+    var flat = String(mainText).replace(/\s+/g, " ").trim();
+    if (!flat) return;
+    var all = lsGet(RECENT_KEY, {});
+    var list = all[brand] || [];
+    list = list.filter(function(x) { return x !== flat; });
+    list.unshift(flat);
+    if (list.length > 30) list = list.slice(0, 30);
+    all[brand] = list;
+    lsSet(RECENT_KEY, all);
+  }
+  function buildAvoidBlock(brand) {
+    var all = lsGet(RECENT_KEY, {});
+    var list = all[brand] || [];
+    if (!list.length) return "";
+    return "\n\n【最近已用過的語錄，請避免重複以下句子，也避免相同句式或同義改寫】\n"
+      + list.map(function(s) { return "・" + s; }).join("\n");
+  }
+
+  // ===== 收藏庫 =====
+  var FAV_KEY = "fengQuoteFavorites_v1";
+  function addFavorite(item) {
+    var list = lsGet(FAV_KEY, []);
+    var k = item.brand + "|" + item.main;
+    if (list.some(function(x) { return (x.brand + "|" + x.main) === k; })) return; // 去重
+    list.unshift(item);
+    if (list.length > 100) list = list.slice(0, 100);
+    lsSet(FAV_KEY, list);
+    renderFavorites();
+  }
+  function removeFavorite(idx) {
+    var list = lsGet(FAV_KEY, []);
+    list.splice(idx, 1);
+    lsSet(FAV_KEY, list);
+    renderFavorites();
+  }
+  function appendLines(el, lines) {
+    for (var i = 0; i < lines.length; i++) {
+      if (i > 0) el.appendChild(document.createElement("br"));
+      el.appendChild(document.createTextNode(lines[i]));
+    }
+  }
+  function applyQuoteToEditor(mainText, subText) {
+    mainTextEl.value = mainText;
+    subTextEl.value = subText;
+    render();
+    saveSettings();
+  }
+  function renderFavorites() {
+    var box = document.getElementById("favList");
+    var wrap = document.getElementById("favSection");
+    if (!box || !wrap) return;
+    var list = lsGet(FAV_KEY, []);
+    box.innerHTML = "";
+    var shown = 0;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].brand !== currentBrand) continue; // 只顯示目前品牌的收藏
+      shown++;
+      (function(item, fullIdx) {
+        var row = document.createElement("div");
+        row.className = "fav-card";
+        var txt = document.createElement("div");
+        txt.className = "fav-card-text";
+        var m = document.createElement("div");
+        m.className = "fav-card-main";
+        appendLines(m, String(item.main).split("\n"));
+        txt.appendChild(m);
+        if (item.sub) {
+          var s = document.createElement("div");
+          s.className = "fav-card-sub";
+          appendLines(s, String(item.sub).split("\n"));
+          txt.appendChild(s);
+        }
+        txt.addEventListener("click", function() { applyQuoteToEditor(item.main, item.sub || ""); });
+        var del = document.createElement("button");
+        del.className = "fav-del-btn";
+        del.type = "button";
+        del.textContent = "✕";
+        del.title = "刪除收藏";
+        del.addEventListener("click", function(e) { e.stopPropagation(); removeFavorite(fullIdx); });
+        row.appendChild(txt);
+        row.appendChild(del);
+        box.appendChild(row);
+      })(list[i], i);
+    }
+    wrap.style.display = shown ? "block" : "none";
+  }
+
+  // ===== 語錄卡共用渲染（同時供隨機/看圖兩種來源，並以 DOM 節點輸出避免 innerHTML 注入） =====
+  function makeQuoteCard(quote, accent) {
+    var mainLines = String(quote.main).replace(/\\n/g, "\n").split("\n");
+    var subLines = String(quote.sub).replace(/\\n/g, "\n").split("\n");
+    var card = document.createElement("div");
+    card.className = "quote-card";
+
+    var mainDiv = document.createElement("div");
+    mainDiv.className = "quote-card-main";
+    if (accent === "cyan") mainDiv.style.color = "var(--cyan)";
+    appendLines(mainDiv, mainLines);
+    card.appendChild(mainDiv);
+
+    var subDiv = document.createElement("div");
+    subDiv.className = "quote-card-sub";
+    appendLines(subDiv, subLines);
+    card.appendChild(subDiv);
+
+    if (quote.why) {
+      var whyDiv = document.createElement("div");
+      whyDiv.className = "quote-card-why";
+      whyDiv.textContent = "打中：" + quote.why;
+      card.appendChild(whyDiv);
+    }
+
+    var favBtn = document.createElement("button");
+    favBtn.className = "quote-fav-btn";
+    favBtn.type = "button";
+    favBtn.textContent = "☆";
+    favBtn.title = "收藏這句";
+    favBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      addFavorite({ main: mainLines.join("\n"), sub: subLines.join("\n"), why: quote.why || "", brand: currentBrand });
+      favBtn.textContent = "★";
+      favBtn.classList.add("saved");
+    });
+    card.appendChild(favBtn);
+
+    card.addEventListener("click", function() {
+      applyQuoteToEditor(mainLines.join("\n"), subLines.join("\n"));
+      recordRecentQuote(currentBrand, mainLines.join(" ")); // 選用即記為「已用過」
+      var cards = quoteList.querySelectorAll(".quote-card");
+      for (var k = 0; k < cards.length; k++) { cards[k].style.borderColor = ""; cards[k].style.background = ""; }
+      card.style.borderColor = (accent === "cyan") ? "var(--cyan)" : "var(--gold)";
+      if (accent !== "cyan") card.style.background = "rgba(201,148,58,0.07)";
+    });
+
+    return card;
+  }
+
+  // ===== 文字防爆版：量測寬度，超出畫布就自動縮字級（slider 值當上限） =====
+  function fitFontSize(lines, weight, baseSize, maxWidth) {
+    var size = baseSize;
+    var min = Math.min(baseSize, 18);
+    while (size > min) {
+      ctx.font = weight + " " + size + "px " + FONT;
+      var tooWide = false;
+      for (var i = 0; i < lines.length; i++) {
+        if (lines[i].trim() && ctx.measureText(lines[i]).width > maxWidth) { tooWide = true; break; }
+      }
+      if (!tooWide) break;
+      size -= 2;
+    }
+    return size;
+  }
+
   // 亮度／對比的手動像素運算（取代 ctx.filter，確保 iOS Safari/Chrome 也生效）
   // 語意對齊 CSS filter：先亮度（值×係數）再對比（以中灰 128 為軸縮放），用 256 階查表加速
   function applyBrightnessContrast(brightness, contrast) {
@@ -1713,8 +1862,11 @@
     var mLines = mainTextEl.value.split("\n");
     var sLines = subTextEl.value.split("\n");
     var author = authorTextEl.value.trim();
-    var mLineH = mSize * 1.3;
-    var sLineH = sSize * 1.5;
+    var maxTextW = W - pad * 2;
+    var fitMain = fitFontSize(mLines, "900", mSize, maxTextW);
+    var fitSub = fitFontSize(sLines, "400", sSize, maxTextW);
+    var mLineH = fitMain * 1.3;
+    var sLineH = fitSub * 1.5;
 
     ctx.textAlign = (align === "center") ? "center" : "left";
     ctx.shadowColor = "rgba(0,0,0,0.7)";
@@ -1735,7 +1887,7 @@
     }
 
     var mainY = (parseInt(mainYSlider.value) / 100) * H;
-    var mainFont = "900 " + mSize + "px " + FONT;
+    var mainFont = "900 " + fitMain + "px " + FONT;
     for (var i = 0; i < mLines.length; i++) {
       if (mLines[i].trim()) {
         drawText(mLines[i], xPos, mainY + i * mLineH, mainColorEl.value, mainFont, strokeW);
@@ -1743,7 +1895,7 @@
     }
 
     var subY = (parseInt(subYSlider.value) / 100) * H;
-    var subFont = "400 " + sSize + "px " + FONT;
+    var subFont = "400 " + fitSub + "px " + FONT;
     ctx.shadowBlur = 6;
     for (var j = 0; j < sLines.length; j++) {
       if (sLines[j].trim()) {
@@ -1952,6 +2104,7 @@
   });
 
   loadSettings();
+  renderFavorites();
   render();
 })();
 </script>
