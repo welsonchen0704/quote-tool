@@ -545,6 +545,11 @@
     top: 90px;
     height: fit-content;
   }
+  .preview-sticky {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
 
   .preview-label {
     font-size: 11px;
@@ -572,7 +577,7 @@
     border: 1px solid var(--border);
     box-shadow: 0 8px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
   }
-  canvas { width: 100%; height: 100%; display: block; }
+  canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
   .empty-state {
     position: absolute; inset: 0;
     display: flex;
@@ -658,11 +663,31 @@
 
   /* Mobile */
   @media (max-width: 720px) {
-    .workspace { padding: 16px 12px 0; gap: 16px; flex-direction: column; }
-    .controls, .preview-wrap { max-width: 100%; min-width: 0; width: 100%; }
-    .controls { order: 1; }
-    .preview-wrap { position: static; order: 2; }
-    .site-header { padding: 14px 16px 12px; }
+    .workspace { padding: 0 12px; gap: 16px; flex-direction: column; }
+    .controls { max-width: 100%; min-width: 0; width: 100%; order: 2; }
+    /* 預覽釘在最上方：把 preview-wrap 攤平，sticky 的作用範圍才能涵蓋整頁捲動 */
+    .preview-wrap { display: contents; }
+    .preview-sticky {
+      order: 1;
+      position: sticky;
+      top: 0;
+      z-index: 90;
+      margin: 0 -12px;
+      padding: 10px 12px 12px;
+      gap: 0;
+      background: var(--bg-deep);
+      border-bottom: 1px solid var(--border-dim);
+      box-shadow: 0 12px 24px -12px rgba(0,0,0,0.7);
+    }
+    .preview-sticky .preview-label { display: none; }
+    .preview-sticky .canvas-container {
+      height: 30vh;
+      width: auto;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    .save-area { order: 3; width: 100%; }
+    .site-header { padding: 14px 16px 12px; position: static; }
 
     .mobile-tabs {
       display: flex;
@@ -812,6 +837,10 @@
         <span class="section-icon moss"></span>
         <span class="section-title">AI 語錄產生器</span>
       </div>
+      <div style="margin-bottom:10px;">
+        <label>此刻情境（選填｜填了就以它為素材產生語錄，貼文也會更有人味）</label>
+        <textarea id="contextInput" placeholder="例：剛收完帳，三人擠車裡吃泡麵／凌晨被狗叫醒看到銀河／在咖啡廳旁邊大學生在聊未來，我在看廣告數據" style="min-height:64px;"></textarea>
+      </div>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <button class="btn-ai btn-ai-gold" id="aiGenerateBtn">
           <span id="aiGenerateBtnLabel">🎲 隨機產生瘋大叔語錄</span>
@@ -856,11 +885,6 @@
         <label>副標語（小字）</label>
         <textarea id="subText">當你有足夠的能力
 沉默也都會是力量</textarea>
-      </div>
-      <div class="field-gap"></div>
-      <div>
-        <label>此刻情境（選填，越具體貼文越有人味）</label>
-        <textarea id="contextInput" placeholder="例：剛收完帳，三人擠車裡吃泡麵／凌晨被狗叫醒看到銀河／在咖啡廳旁邊大學生在聊未來，我在看廣告數據" style="min-height:70px;"></textarea>
       </div>
       <div class="field-gap"></div>
       <div>
@@ -983,12 +1007,14 @@
 
   <!-- ── 右側預覽 ── -->
   <div class="preview-wrap">
-    <p class="preview-label">即時預覽</p>
-    <div class="canvas-container" id="canvasContainer">
-      <canvas id="canvas"></canvas>
-      <div class="empty-state" id="emptyState">
-        <span class="empty-icon">🌲</span>
-        <span>請先上傳照片</span>
+    <div class="preview-sticky">
+      <p class="preview-label">即時預覽</p>
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="canvas"></canvas>
+        <div class="empty-state" id="emptyState">
+          <span class="empty-icon">🌲</span>
+          <span>請先上傳照片</span>
+        </div>
       </div>
     </div>
     <div class="save-area" id="saveArea">
@@ -1262,23 +1288,56 @@
     { name: "平實日常", desc: "不刻意金句，像生活筆記，輕輕說重點，平凡裡看出味道" }
   ];
 
+  // 版式池：每批 5 組各配一種不同版式，打破「永遠主標2行＋副標2行」的視覺重複
+  var FORMAT_POOL = [
+    { name: "單行重擊", spec: "主標只有 1 行（5-10 字），一句話直接砸下來；副標 2 行（每行 7-12 字）接住它" },
+    { name: "標準對仗", spec: "主標 2 行（每行 6-10 字）；副標 2 行（每行 7-12 字）" },
+    { name: "短鉤長解", spec: "主標 1 行（4-8 字）的極短鉤子；副標 2 行（每行 8-14 字）把它展開、落地" },
+    { name: "三行詩式", spec: "主標 3 行（每行 4-8 字），像詩的斷句、有節奏留白；副標 1 行（7-12 字）輕輕收尾" },
+    { name: "問句開場", spec: "主標 1-2 行且必須是問句（每行 5-10 字）；副標 2 行（每行 7-12 字）用肯定句回答、或再補一個反問" }
+  ];
+
+  // 此刻情境模式：同一件事用 5 種不同切角寫，靠切角差異避免同質
+  var CONTEXT_ANGLES = [
+    "自嘲吐槽：放大情境裡最好笑或最無奈的點，笑自己",
+    "感受沉澱：寫出情境當下心裡那個說不出口的感覺",
+    "旁觀觀察：像第三者站在旁邊看這一幕，冷冷點評",
+    "意義反轉：從情境裡翻出一個意想不到的領悟",
+    "拉高哲思：從這件小事跳到人生、中年、創業的普遍處境"
+  ];
+
+  var HOOK_DEF = '【主標與副標的功能定義】'
+    + '\n主標＝鉤子（Hook）：讓人在 0.5 秒內停下來的那句話，製造衝擊或共鳴。行數與每行字數依各組指定的「版式」寫。'
+    + '\n副標＝落地（Landing）：接住主標丟出去的力量，補脈絡、補刀或反轉，讓它從漂亮話變成完整觀點。行數與字數同樣依「版式」。沒有副標，主標就只是口號。';
+
+  var OVERGEN_BLOCK = '\n\n【產出流程：先多後砍】先在心裡快速草擬 10 組，再自我審查：刪掉句式結構雷同、開頭用字重複、情緒同質性高的，只留下最強、且彼此差異最大的 5 組。審查過程不要寫出來。';
+
+  var JSON_TAIL = '\n\n只回傳JSON格式，不要任何其他文字。main 與 sub 依各組指定的版式分行，行與行之間用\\n：[{"main":"主標","sub":"副標","why":"打中的點"},...]';
+
+  // 產生按鈕文字：有填「此刻情境」時切換成情境模式提示
+  function updateGenerateBtnLabel() {
+    var labelEl = document.getElementById("aiGenerateBtnLabel");
+    if (!labelEl) return;
+    var hasCtx = contextInput && contextInput.value.trim();
+    if (hasCtx) labelEl.textContent = "✍️ 從此刻情境產生語錄";
+    else labelEl.textContent = (currentBrand === "camp") ? "🎲 隨機產生露營瘋語錄" : "🎲 隨機產生瘋大叔語錄";
+  }
+
   window.switchBrand = function switchBrand(brand) {
     currentBrand = brand;
     var tabFeng = document.getElementById("tabFeng");
     var tabCamp = document.getElementById("tabCamp");
-    var labelEl = document.getElementById("aiGenerateBtnLabel");
     var authorEl = document.getElementById("authorText");
     if (brand === "feng") {
       tabFeng.className = "brand-tab active";
       tabCamp.className = "brand-tab";
-      if (labelEl) labelEl.textContent = "🎲 隨機產生瘋大叔語錄";
       if (authorEl && (authorEl.value === "瘋大叔 × 露營瘋" || authorEl.value === "")) authorEl.value = "WELSON CHEN";
     } else {
       tabFeng.className = "brand-tab";
       tabCamp.className = "brand-tab brand-tab-camp active";
-      if (labelEl) labelEl.textContent = "🎲 隨機產生露營瘋語錄";
       if (authorEl && (authorEl.value === "WELSON CHEN" || authorEl.value === "")) authorEl.value = "瘋大叔 × 露營瘋";
     }
+    updateGenerateBtnLabel();
     document.getElementById("quoteList").innerHTML = "";
     var _qrr = document.getElementById("quoteRefineRow");
     if (_qrr) _qrr.style.display = "none";
@@ -1316,21 +1375,41 @@
     quoteList.innerHTML = "";
     if (refineRow) refineRow.style.display = "none";
 
+    var ctxT = (contextInput && contextInput.value) ? contextInput.value.trim() : "";
+    var tones = pickRandom(TONE_POOL, 5);
+    var formats = pickRandom(FORMAT_POOL, 5); // 剛好 5 種 → 洗牌，每批涵蓋全部版式
     var prompt;
-    if (currentBrand === "camp") {
-      // 跨類別抽 5 條主題（5 個不同 category），每組搭配 1 個不重複 tone；解決同輪重複問題
+
+    if (ctxT) {
+      // 此刻情境模式：5 組全部從使用者的真實情境出發，各配不同切角×語氣×版式
+      var persona = (currentBrand === "camp")
+        ? '你是「瘋大叔」，一個玩露營超過10年的老露友，現在在跟同樣愛露營的老朋友說話。'
+        : '你是「瘋大叔」，一個52歲的台灣創業者。';
+      var angles = pickRandom(CONTEXT_ANGLES, 5);
+      var assignLines = angles.map(function(a, idx) {
+        var t = tones[idx], f = formats[idx];
+        return (idx + 1) + '.[切角:' + a + ' | 語氣:' + t.name + '(' + t.desc + ') | 版式:' + f.name + '(' + f.spec + ')]';
+      }).join('\n');
+      prompt = persona
+        + '\n\n【此刻真實情境】\n' + ctxT
+        + '\n\n這是我現在真實發生的事。請以這個情境為唯一素材，產生 5 組語錄：5 組都要從這個情境出發，但依下面指定的切角、語氣、版式寫，彼此必須長得完全不一樣。'
+        + '\n語錄會配著這個情境拍的照片使用，但要寫成沒經歷這件事的人也看得懂、也會被打到的句子；禁止流水帳複述情境。'
+        + '\n\n' + HOOK_DEF
+        + '\n\n【5 組的指定寫法】\n' + assignLines
+        + '\n\n要求：①每組切入角度不同，禁止重複句式結構 ②禁止「終究會」「不過如此」「總有一天」「人生就像」這類雞湯套話與抒情套句 ③主標和副標的語氣重量要有明確落差 ④全程繁體中文，不出現簡體字 ⑤每組附一個 why 欄位：用 12 字以內點出這句打中什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
+        + OVERGEN_BLOCK + JSON_TAIL;
+    } else if (currentBrand === "camp") {
+      // 跨類別抽 5 條主題（5 個不同 category），每組搭配不重複的語氣與版式；解決同輪重複問題
       var crossThemes = pickThemesCrossCategory(THEME_POOL_CAMP, 5);
-      var campTones = pickRandom(TONE_POOL, 5);
       var themeLines = crossThemes.map(function(item, idx) {
-        var t = campTones[idx];
-        return (idx + 1) + '.[類別:' + item.category + ' | 語氣:' + t.name + '(' + t.desc + ')] ' + item.theme;
+        var t = tones[idx], f = formats[idx];
+        return (idx + 1) + '.[類別:' + item.category + ' | 語氣:' + t.name + '(' + t.desc + ') | 版式:' + f.name + '(' + f.spec + ')] ' + item.theme;
       }).join('\n');
 
       prompt = '你是「瘋大叔」，一個玩露營超過10年的老露友，現在在跟同樣愛露營的老朋友說話。'
-        + '\n\n請針對以下 5 個主題各產生 1 組語錄（共 5 組），每組包含主標、副標、why 欄位，每組請依指定的「類別」與「語氣」寫。'
-        + '\n\n【主標與副標的功能定義】'
-        + '\n主標＝Hook：2行，每行6-10字（意境更到位 11-12 字也可以）。要有具體的露營場景、動作或畫面，讓露營人一看就笑出來、點頭、或被打中。'
-        + '\n副標＝補刀（Landing）：2行，每行7-12字。可以是露營人心裡有但嘴上不說的那句話，要有轉折、補刀、或感受沉澱。沒有副標，主標就只是口號。'
+        + '\n\n請針對以下 5 個主題各產生 1 組語錄（共 5 組），每組包含主標、副標、why 欄位，每組請依指定的「類別」「語氣」「版式」寫。'
+        + '\n\n' + HOOK_DEF
+        + '\n主標要有具體的露營場景、動作或畫面，讓露營人一看就笑出來、點頭、或被打中；副標是露營人心裡有但嘴上不說的那句話，要有轉折、補刀、或感受沉澱。'
         + '\n\n【主副標的關係，5 種任選對應，但 5 組不可全用同一種】'
         + '\n①場景→吐槽：主標描述露營場景，副標吐出心裡話'
         + '\n②動作→反轉：主標寫一個露營動作，副標翻轉意義'
@@ -1340,7 +1419,7 @@
         + '\n\n【寫作模式（圈內人視角，但模式必須多樣）】'
         + '\n- 五種可選：吐槽 / 描寫 / 感受 / 觀察 / 哲思'
         + '\n- 本次 5 組必須走「至少 3 種不同模式」，禁止 5 組都是自嘲梗'
-        + '\n\n【主題（請按指定類別與語氣寫）】\n' + themeLines
+        + '\n\n【主題（請按指定類別、語氣、版式寫）】\n' + themeLines
         + '\n\n要求：'
         + '①每組語錄的切入角度要不同，禁止重複句式結構 '
         + '②禁套句：「大自然真美」「生命很珍貴」「感謝自然」「療癒身心」「終究會」「不過如此」「總有一天」「人生就像」「我們都是」「在這個世界上」「找到自己」「不需要的東西」 '
@@ -1348,23 +1427,24 @@
         + '④主標和副標的語氣重量要有明確落差，不能兩句都一樣重 '
         + '⑤全程繁體中文，不出現簡體字 '
         + '⑥每組附一個 why 欄位：用 12 字以內點出這句打中露營人的什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
-        + '\n\n只回傳JSON格式，不要其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
+        + OVERGEN_BLOCK + JSON_TAIL;
     } else {
-      var tone = TONE_POOL[Math.floor(Math.random() * TONE_POOL.length)];
       var themes = pickRandom(THEME_POOL_FENG, 5);
+      var fengLines = themes.map(function(theme, idx) {
+        var t = tones[idx], f = formats[idx];
+        return (idx + 1) + '.[語氣:' + t.name + '(' + t.desc + ') | 版式:' + f.name + '(' + f.spec + ')] ' + theme;
+      }).join('\n');
       prompt = '你是「瘋大叔」，一個52歲的台灣創業者。'
-        + '本次語氣風格：【' + tone.name + '】—— ' + tone.desc + '。'
-        + '請針對以下 5 個主題各產生 1 組語錄（共 5 組），每組包含主標語和副標語。'
-        + '\n\n【主標與副標的功能定義】'
-        + '主標＝鉤子（Hook）：讓人在 0.5 秒內停下來的那句話。功能是製造衝擊或引發共鳴，可以是一個觀點、金句、或有畫面的斷言。格式：2行，每行6-10個字（意境更到位 11-12 字也可以）。'
-        + '副標＝落地（Landing）：接住主標丟出去的力量，讓它從一句漂亮話變成完整觀點。功能是補脈絡或反轉。沒有副標，主標就只是口號。格式：2行，每行7-12個字。'
+        + '請針對以下 5 個主題各產生 1 組語錄（共 5 組），每組包含主標語和副標語，並依各組指定的「語氣」與「版式」寫。'
+        + '\n\n' + HOOK_DEF
+        + '\n主標可以是一個觀點、金句、或有畫面的斷言。'
         + '\n\n【主副標的關係必須是以下三種之一】'
         + '①觀點→解釋：主標丟立場，副標說為什麼'
         + '②畫面→意義：主標描述場景，副標點出背後道理'
         + '③正→反轉：主標看似A方向，副標突然翻到B'
-        + '\n\n主題：1.' + themes.join(' 2.') + '。'
+        + '\n\n【主題（請按指定語氣與版式寫）】\n' + fengLines
         + '\n\n要求：①每組語錄的切入角度要不同，禁止重複句式結構 ②禁止出現「你要相信」「終究會」「不過如此」「總有一天」這類雞湯套話 ③如果主題是具體情境，主標要有畫面感不要抽象化 ④主標和副標的語氣重量要有明確落差，不能兩句都一樣重 ⑤全程繁體中文，不出現簡體字 ⑥每組再附一個 why 欄位：用 12 字以內點出這句打中的是什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
-        + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
+        + OVERGEN_BLOCK + JSON_TAIL;
     }
     if (refineHint) prompt += '\n\n【這次的特別要求】' + refineHint + '\n用這個方向重出一批新的 5 組，不要重複上一批的句子。';
     prompt += buildAvoidBlock(currentBrand);
@@ -1421,7 +1501,16 @@
     quoteList.innerHTML = "";
     if (refineRow) refineRow.style.display = "none";
 
-    var tone = TONE_POOL[Math.floor(Math.random() * TONE_POOL.length)];
+    var tones = pickRandom(TONE_POOL, 5);
+    var formats = pickRandom(FORMAT_POOL, 5);
+    var assignLines = formats.map(function(f, idx) {
+      var t = tones[idx];
+      return (idx + 1) + '.[語氣:' + t.name + '(' + t.desc + ') | 版式:' + f.name + '(' + f.spec + ')]';
+    }).join('\n');
+    var ctxT = (contextInput && contextInput.value) ? contextInput.value.trim() : "";
+    var ctxBlock = ctxT
+      ? ('\n\n【拍照當下的真實情境（最重要素材，優先於畫面）】\n' + ctxT + '\n把這個情境的情緒融進語錄，但禁止流水帳複述情境。')
+      : '';
 
     var tempCanvas = document.createElement("canvas");
     var tempCtx = tempCanvas.getContext("2d");
@@ -1439,37 +1528,37 @@
     var visionPrompt;
     if (currentBrand === "camp") {
       visionPrompt = '你是「瘋大叔」，一個玩露營超過10年的老露友，現在在跟同樣愛露營的老朋友說話。'
-        + '本次語氣風格：【' + tone.name + '】—— ' + tone.desc + '。'
         + '\n\n【照片的用法】照片是「氛圍觸發器」。感受當下氛圍（放鬆、捨不得走、折騰、同好情誼、野外的自由等），用那個情緒寫露營語錄。'
         + '\n規則：①可以提及露營元素（帳篷、營火、收帳、營地等）作為起點，但不要只描述當下這張照片 ②主標要說露營人「普遍會遇到」的情況，讓沒看到這張照片的人也看得懂 ③禁止「這頂帳篷」「這片山」「這條路」這種指認式描述'
-        + '\n\n請產生 5 組語錄，每組包含主標和副標。'
-        + '\n\n【主標與副標的功能定義】'
-        + '\n主標＝Hook：2行，每行6-10字（意境更到位 11-12 字也可以）。要有具體露營場景或動作，讓露營人一看就笑或點頭。'
-        + '\n副標＝補刀：2行，每行7-12字。說出露營人心裡有但嘴上不說的那句話，補刀或轉折。'
+        + ctxBlock
+        + '\n\n請產生 5 組語錄，每組依下面指定的「語氣」與「版式」寫，彼此必須長得完全不一樣。'
+        + '\n\n' + HOOK_DEF
+        + '\n主標要有具體露營場景或動作，讓露營人一看就笑或點頭；副標是露營人心裡有但嘴上不說的那句話，補刀或轉折。'
+        + '\n\n【5 組的指定寫法】\n' + assignLines
         + '\n\n【主副標的關係必須是以下三種之一】'
         + '\n①場景→吐槽：主標描述露營場景，副標吐出心裡話'
         + '\n②動作→反轉：主標寫一個露營動作，副標翻轉意義'
         + '\n③共識→補刀：主標講露營人都懂的事，副標一刀切到底'
         + '\n\n要求：①禁止重複句式結構 ②禁止「大自然真美」「感謝自然」「生命很珍貴」「療癒身心」等抒情套句，也禁止「終究會」「不過如此」這類雞湯 ③主副標語氣重量要有落差 ④全程繁體中文，不出現簡體字 ⑤每組再附一個 why 欄位：用 12 字以內點出這句打中露營人的什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
-        + '\n【語氣】圈內人說圈內話，自嘲，有點欠，但有溫度。'
-        + '\n\n只回傳JSON，不要其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
+        + '\n【語氣基調】圈內人說圈內話，自嘲，有點欠，但有溫度。'
+        + OVERGEN_BLOCK + JSON_TAIL;
     } else {
       visionPrompt = '你是「瘋大叔」，一個52歲的台灣創業者。'
-        + '本次語氣風格：【' + tone.name + '】—— ' + tone.desc + '。'
         + '\n\n【照片的用法——極重要】'
         + '照片只是「情緒觸發器」，不是語錄的主角。'
         + '感受照片的情緒基調（孤獨、沉靜、壓力、自由、倔強等），然後用那個情緒寫語錄。'
         + '規則：①語錄必須能脫離照片獨立成立 ②嚴禁在主標中描述照片內容（禁止「這片田」「這條路」「這棵樹」「綠意」「陽光」等場景描述詞）③主標要是讓任何人在任何情境下看到都會被打到的金句，不是看圖說話'
-        + '\n\n請產生 5 組語錄。'
-        + '\n\n【主標與副標的功能定義】'
-        + '主標＝鉤子（Hook）：讓人在 0.5 秒內停下來的那句話。必須是觀點、金句、或斷言，能單獨截圖傳給朋友還是有力量。格式：2行，每行6-10個字（意境更到位 11-12 字也可以）。'
-        + '副標＝落地（Landing）：接住主標丟出去的力量，讓它從一句漂亮話變成完整觀點。格式：2行，每行7-12個字。'
+        + ctxBlock
+        + '\n\n請產生 5 組語錄，每組依下面指定的「語氣」與「版式」寫，彼此必須長得完全不一樣。'
+        + '\n\n' + HOOK_DEF
+        + '\n主標必須是觀點、金句、或斷言，能單獨截圖傳給朋友還是有力量。'
+        + '\n\n【5 組的指定寫法】\n' + assignLines
         + '\n\n【主副標的關係必須是以下三種之一】'
         + '①觀點→解釋：主標丟立場，副標說為什麼'
         + '②畫面→意義：主標用比喻或場景起頭，副標點出人生道理'
         + '③正→反轉：主標看似A方向，副標突然翻到B'
         + '\n\n要求：①禁止重複句式結構 ②禁止「你要相信」「終究會」「不過如此」「總有一天」等雞湯套話 ③主標和副標的語氣重量要有明確落差 ④全程繁體中文，不要夾雜英文 ⑤每組再附一個 why 欄位：用 12 字以內點出這句打中的是什麼情緒或痛點（給挑選的人看的，不會印進圖裡）。'
-        + '請只回傳JSON格式，不要任何其他文字：[{"main":"第一行\\n第二行","sub":"第一行\\n第二行","why":"打中的點"},...]';
+        + OVERGEN_BLOCK + JSON_TAIL;
     }
     if (refineHint) visionPrompt += '\n\n【這次的特別要求】' + refineHint + '\n用這個方向重出一批新的 5 組，不要重複上一批的句子。';
     visionPrompt += buildAvoidBlock(currentBrand);
@@ -1927,6 +2016,7 @@
   var postContent = document.getElementById("postContent");
   var copyPostBtn = document.getElementById("copyPostBtn");
   var contextInput = document.getElementById("contextInput");
+  contextInput.addEventListener("input", updateGenerateBtnLabel);
 
   generateBtn.addEventListener("click", function() {
     if (!uploadedImg) { alert("請先上傳照片"); return; }
