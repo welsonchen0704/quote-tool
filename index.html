@@ -893,6 +893,19 @@
       </div>
     </div>
 
+    <!-- 我的語氣範本 -->
+    <div class="panel-section" data-mtab="quote">
+      <div class="section-header">
+        <span class="section-icon dim"></span>
+        <span class="section-title">我的語氣範本</span>
+        <span id="voiceCount" style="margin-left:auto;font-size:10px;color:var(--text-dim);letter-spacing:0.5px;"></span>
+      </div>
+      <label>貼上你自己寫過、最像你口氣的句子（一行一句）。AI 只學語感節奏、不會抄內容；瘋大叔／露營瘋分開記。</label>
+      <textarea id="voiceInput" placeholder="例：
+說真的我也不是愛炫耀的人！不過我騎 YouBike 就是要選電助力
+狗在我腳邊睡著了，我不敢動，腳麻到沒知覺" style="min-height:96px;"></textarea>
+    </div>
+
     <!-- 文字樣式 -->
     <div class="panel-section" data-mtab="style">
       <div class="section-header">
@@ -1364,6 +1377,7 @@
     var _qrr = document.getElementById("quoteRefineRow");
     if (_qrr) _qrr.style.display = "none";
     renderFavorites();
+    if (typeof loadVoiceCorpus === "function") loadVoiceCorpus();
     saveSettings();
   }
 
@@ -1473,13 +1487,14 @@
         + OVERGEN_BLOCK + JSON_TAIL;
     }
     if (refineHint) prompt += '\n\n【這次的特別要求】' + refineHint + '\n用這個方向重出一批新的 5 組，不要重複上一批的句子。';
+    prompt += buildVoiceBlock(currentBrand);
     prompt += buildAvoidBlock(currentBrand);
 
     fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5",
         max_tokens: 1200,
         messages: [{ role: "user", content: prompt }]
       })
@@ -1499,6 +1514,7 @@
       if (jsonStart >= 0 && jsonEnd > jsonStart) { text = text.substring(jsonStart, jsonEnd + 1); }
       var quotes = JSON.parse(text);
       for (var q = 0; q < quotes.length; q++) { quoteList.appendChild(makeQuoteCard(quotes[q], "gold")); }
+      recordShownQuotes(currentBrand, quotes);
       if (refineRow) refineRow.style.display = "flex";
     })
     .catch(function(err) {
@@ -1587,13 +1603,14 @@
         + OVERGEN_BLOCK + JSON_TAIL;
     }
     if (refineHint) visionPrompt += '\n\n【這次的特別要求】' + refineHint + '\n用這個方向重出一批新的 5 組，不要重複上一批的句子。';
+    visionPrompt += buildVoiceBlock(currentBrand);
     visionPrompt += buildAvoidBlock(currentBrand);
 
     fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5",
         max_tokens: 1200,
         messages: [{
           role: "user",
@@ -1621,6 +1638,7 @@
       if (jsonStart >= 0 && jsonEnd > jsonStart) { text = text.substring(jsonStart, jsonEnd + 1); }
       var quotes = JSON.parse(text);
       for (var q = 0; q < quotes.length; q++) { quoteList.appendChild(makeQuoteCard(quotes[q], "cyan")); }
+      recordShownQuotes(currentBrand, quotes);
       if (refineRow) refineRow.style.display = "flex";
     })
     .catch(function(err) {
@@ -1756,25 +1774,35 @@
   }
   function lsSet(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
 
-  // ===== 防重複記憶：記錄各品牌「實際選用過」的主標，產生新語錄時當禁用清單 =====
+  // ===== 防重複記憶：記錄各品牌「出現過」的主標（不只選用的），產生新語錄時當禁用清單 =====
   var RECENT_KEY = "fengQuoteRecent_v1";
   function recordRecentQuote(brand, mainText) {
-    var flat = String(mainText).replace(/\s+/g, " ").trim();
+    var flat = String(mainText).replace(/\\n/g, " ").replace(/\s+/g, " ").trim();
     if (!flat) return;
     var all = lsGet(RECENT_KEY, {});
     var list = all[brand] || [];
     list = list.filter(function(x) { return x !== flat; });
     list.unshift(flat);
-    if (list.length > 30) list = list.slice(0, 30);
+    if (list.length > 50) list = list.slice(0, 50);
     all[brand] = list;
     lsSet(RECENT_KEY, all);
+  }
+  // 每批產出的 5 句全部記錄——沒被選用的句子下批也不該換皮重出
+  function recordShownQuotes(brand, quotes) {
+    for (var i = quotes.length - 1; i >= 0; i--) recordRecentQuote(brand, quotes[i].main);
   }
   function buildAvoidBlock(brand) {
     var all = lsGet(RECENT_KEY, {});
     var list = all[brand] || [];
     if (!list.length) return "";
-    return "\n\n【最近已用過的語錄，請避免重複以下句子，也避免相同句式或同義改寫】\n"
-      + list.map(function(s) { return "・" + s; }).join("\n");
+    var openings = [];
+    for (var i = 0; i < list.length && openings.length < 20; i++) {
+      var op = list[i].slice(0, 2);
+      if (op.length === 2 && openings.indexOf(op) < 0) openings.push(op);
+    }
+    return "\n\n【最近已出現過的語錄，請避免重複以下句子，也避免相同句式或同義改寫】\n"
+      + list.map(function(s) { return "・" + s; }).join("\n")
+      + (openings.length ? "\n主標的開頭也不要再用這些字起手：" + openings.join("、") : "");
   }
 
   // ===== 收藏庫 =====
@@ -1844,6 +1872,41 @@
       })(list[i], i);
     }
     wrap.style.display = shown ? "block" : "none";
+  }
+
+  // ===== 我的語氣範本：使用者貼自己寫過的句子，生成時當風格 few-shot（學語感、禁抄句） =====
+  var VOICE_KEY = "fengQuoteVoice_v1";
+  var voiceInput = document.getElementById("voiceInput");
+  var voiceCount = document.getElementById("voiceCount");
+  function voiceLines(raw) {
+    return String(raw || "").split("\n").map(function(s) { return s.trim(); }).filter(Boolean);
+  }
+  function updateVoiceCount() {
+    if (!voiceCount) return;
+    var n = voiceLines(voiceInput ? voiceInput.value : "").length;
+    voiceCount.textContent = n ? ("已存 " + n + " 句" + (n > 20 ? "（生成時取前 20）" : "")) : "";
+  }
+  function loadVoiceCorpus() {
+    if (!voiceInput) return;
+    var all = lsGet(VOICE_KEY, {});
+    voiceInput.value = all[currentBrand] || "";
+    updateVoiceCount();
+  }
+  if (voiceInput) {
+    voiceInput.addEventListener("input", function() {
+      var all = lsGet(VOICE_KEY, {});
+      all[currentBrand] = voiceInput.value;
+      lsSet(VOICE_KEY, all);
+      updateVoiceCount();
+    });
+  }
+  function buildVoiceBlock(brand) {
+    var all = lsGet(VOICE_KEY, {});
+    var lines = voiceLines(all[brand]).slice(0, 20);
+    if (!lines.length) return "";
+    return '\n\n【我的語氣範本——學語感，不學內容】'
+      + '\n以下是我本人寫過的句子，代表我真實的口氣。請模仿它們的用詞習慣、句子節奏、口語程度和幽默方式；但嚴禁直接使用、拼接或同義改寫其中任何一句：\n'
+      + lines.map(function(s) { return '・' + s; }).join('\n');
   }
 
   // ===== 語錄卡共用渲染（同時供隨機/看圖兩種來源，並以 DOM 節點輸出避免 innerHTML 注入） =====
@@ -2172,7 +2235,7 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5",
         max_tokens: 1500,
         messages: [{ role: "user", content: msgContent }]
       })
@@ -2221,6 +2284,7 @@
 
   loadSettings();
   renderFavorites();
+  loadVoiceCorpus();
   render();
 })();
 </script>
