@@ -1088,6 +1088,50 @@
   var WORKER_URL = "https://quote-proxy.welson-chen.workers.dev";
   var uploadedImg = null;
   var uploadedImgBase64 = null;
+
+  // 行動網路容易瞬斷（iOS 上顯示 Load failed）：網路層失敗自動重試一次
+  function fetchWithRetry(url, options, retries) {
+    retries = (retries == null) ? 1 : retries;
+    return fetch(url, options).catch(function(err) {
+      if (retries <= 0) throw err;
+      return new Promise(function(resolve) { setTimeout(resolve, 1500); })
+        .then(function() { return fetchWithRetry(url, options, retries - 1); });
+    });
+  }
+  // 統一讀取 API 回應：把 Anthropic 錯誤封包轉成看得懂的訊息
+  function readApiJson(res) {
+    return res.json().then(function(data) {
+      if (data && data.type === "error") {
+        throw new Error((data.error && data.error.message) || "API 回傳錯誤");
+      }
+      if (!data || !data.content || !data.content.length) {
+        throw new Error("API 沒有回傳內容，請重試");
+      }
+      return data;
+    });
+  }
+  // 寬鬆解析語錄 JSON：回應被 max_tokens 截斷或夾雜文字時，撈出仍完整的物件個別解析
+  function parseQuotesLoose(raw) {
+    var text = String(raw).replace(/```json/g, "").replace(/```/g, "").trim();
+    var jsonStart = text.indexOf("[");
+    var jsonEnd = text.lastIndexOf("]");
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      try {
+        var arr = JSON.parse(text.substring(jsonStart, jsonEnd + 1));
+        if (arr && arr.length) return arr;
+      } catch (e) {}
+    }
+    var out = [];
+    var chunks = text.match(/\{[^{}]*\}/g) || [];
+    for (var i = 0; i < chunks.length; i++) {
+      try {
+        var o = JSON.parse(chunks[i]);
+        if (o && o.main && o.sub) out.push(o);
+      } catch (e2) {}
+    }
+    if (out.length) return out;
+    throw new Error("AI 回應格式不完整，請再試一次");
+  }
   var FONT = '"Noto Serif TC","PingFang TC","Microsoft JhengHei","Heiti TC",sans-serif';
 
   // --- Presets ---
@@ -1383,7 +1427,7 @@
     + '\n主標＝鉤子（Hook）：讓人在 0.5 秒內停下來的那句話，製造衝擊或共鳴。行數與每行字數依各組指定的「版式」寫。'
     + '\n副標＝落地（Landing）：接住主標丟出去的力量，補脈絡、補刀或反轉，讓它從漂亮話變成完整觀點。行數與字數同樣依「版式」。沒有副標，主標就只是口號。';
 
-  var OVERGEN_BLOCK = '\n\n【產出流程：先多後砍】先在心裡快速草擬 10 組，再自我審查：刪掉句式結構雷同、開頭用字重複、情緒同質性高的，只留下最強、且彼此差異最大的 5 組。審查過程不要寫出來。';
+  var OVERGEN_BLOCK = '\n\n【產出流程：先多後砍】在內部先快速草擬 10 組，再自我審查：刪掉句式結構雷同、開頭用字重複、情緒同質性高的，只留下最強、且彼此差異最大的 5 組。注意：草稿與審查過程絕對不能出現在輸出裡，你的輸出從頭到尾只有最終 5 組的 JSON。';
 
   var JSON_TAIL = '\n\n只回傳JSON格式，不要任何其他文字。main 與 sub 依各組指定的版式分行，行與行之間用\\n：[{"main":"主標","sub":"副標","why":"打中的點"},...]';
 
@@ -1528,16 +1572,16 @@
     prompt += buildVoiceBlock(currentBrand);
     prompt += buildAvoidBlock(currentBrand);
 
-    fetch(WORKER_URL, {
+    fetchWithRetry(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 1200,
+        max_tokens: 3000,
         messages: [{ role: "user", content: prompt }]
       })
     })
-    .then(function(res) { return res.json(); })
+    .then(readApiJson)
     .then(function(data) {
       aiLoading.style.display = "none";
       aiGenerateBtn.disabled = false;
@@ -1546,11 +1590,7 @@
       for (var c = 0; c < data.content.length; c++) {
         if (data.content[c].type === "text") text += data.content[c].text;
       }
-      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      var jsonStart = text.indexOf("[");
-      var jsonEnd = text.lastIndexOf("]");
-      if (jsonStart >= 0 && jsonEnd > jsonStart) { text = text.substring(jsonStart, jsonEnd + 1); }
-      var quotes = JSON.parse(text);
+      var quotes = parseQuotesLoose(text);
       for (var q = 0; q < quotes.length; q++) { quoteList.appendChild(makeQuoteCard(quotes[q], "gold")); }
       recordShownQuotes(currentBrand, quotes);
       if (refineRow) refineRow.style.display = "flex";
@@ -1644,12 +1684,12 @@
     visionPrompt += buildVoiceBlock(currentBrand);
     visionPrompt += buildAvoidBlock(currentBrand);
 
-    fetch(WORKER_URL, {
+    fetchWithRetry(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 1200,
+        max_tokens: 3000,
         messages: [{
           role: "user",
           content: [
@@ -1659,7 +1699,7 @@
         }]
       })
     })
-    .then(function(res) { return res.json(); })
+    .then(readApiJson)
     .then(function(data) {
       aiLoading.style.display = "none";
       for (var d2 = 0; d2 < loadingSpans.length; d2++) loadingSpans[d2].style.background = "var(--gold)";
@@ -1670,11 +1710,7 @@
       for (var c = 0; c < data.content.length; c++) {
         if (data.content[c].type === "text") text += data.content[c].text;
       }
-      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      var jsonStart = text.indexOf("[");
-      var jsonEnd = text.lastIndexOf("]");
-      if (jsonStart >= 0 && jsonEnd > jsonStart) { text = text.substring(jsonStart, jsonEnd + 1); }
-      var quotes = JSON.parse(text);
+      var quotes = parseQuotesLoose(text);
       for (var q = 0; q < quotes.length; q++) { quoteList.appendChild(makeQuoteCard(quotes[q], "cyan")); }
       recordShownQuotes(currentBrand, quotes);
       if (refineRow) refineRow.style.display = "flex";
@@ -2207,11 +2243,37 @@
       };
     }).catch(function() {});
   }
+  // iOS WebKit 存 Blob 進 IndexedDB 後重新整理會讀不回來（破圖），因此一律存 ArrayBuffer、讀取時組回 Blob
+  function blobToBuf(blob) {
+    if (blob.arrayBuffer) return blob.arrayBuffer();
+    return new Promise(function(resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function() { resolve(fr.result); };
+      fr.onerror = reject;
+      fr.readAsArrayBuffer(blob);
+    });
+  }
+  function recBlob(rec) {
+    if (rec.buf) return new Blob([rec.buf], { type: rec.mime || "image/jpeg" });
+    return rec.blob || null;
+  }
+  // 清掉舊版直接存 Blob 的記錄（在 iOS 上已經是死資料）
+  function galleryPurgeLegacy() {
+    return galleryAll().then(function(list) {
+      var legacy = list.filter(function(r) { return !r.buf; });
+      if (!legacy.length) return;
+      return galleryTx("readwrite", function(s) {
+        for (var i = 0; i < legacy.length; i++) s.delete(legacy[i].id);
+      });
+    }).catch(function() {});
+  }
   var galleryURLs = [];
   var appliedGalleryURL = null;
   function applyGalleryItem(rec) {
+    var b = recBlob(rec);
+    if (!b) return;
     if (appliedGalleryURL) { try { URL.revokeObjectURL(appliedGalleryURL); } catch (e) {} }
-    appliedGalleryURL = URL.createObjectURL(rec.blob);
+    appliedGalleryURL = URL.createObjectURL(b);
     outputImg.src = appliedGalleryURL;
     saveArea.style.display = "block";
     shareBtn.style.display = (navigator.canShare ? "flex" : "none");
@@ -2232,10 +2294,12 @@
       grid.innerHTML = "";
       section.style.display = list.length ? "block" : "none";
       list.forEach(function(rec) {
+        var b = recBlob(rec);
+        if (!b) return;
         var item = document.createElement("div");
         item.className = "gallery-item";
         var img = document.createElement("img");
-        var u = URL.createObjectURL(rec.blob);
+        var u = URL.createObjectURL(b);
         galleryURLs.push(u);
         img.src = u;
         img.alt = rec.main || "語錄圖";
@@ -2277,8 +2341,10 @@
       lastGallerySave = new Promise(function(resolve) {
         canvas.toBlob(function(blob) {
           if (!blob) return resolve();
-          galleryAdd({ id: recId, brand: currentBrand, main: (mainTextEl.value.split("\n")[0] || "").trim(), post: "", blob: blob })
-            .then(function() { renderGallery(); resolve(); });
+          blobToBuf(blob).then(function(buf) {
+            return galleryAdd({ id: recId, brand: currentBrand, main: (mainTextEl.value.split("\n")[0] || "").trim(), post: "", mime: blob.type || "image/jpeg", buf: buf });
+          }).then(function() { renderGallery(); resolve(); })
+            .catch(function() { resolve(); });
         }, "image/jpeg", 0.9);
       });
     } catch(e) {}
@@ -2396,16 +2462,16 @@
       msgContent = postPrompt;
     }
 
-    fetch(WORKER_URL, {
+    fetchWithRetry(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 1500,
+        max_tokens: 2000,
         messages: [{ role: "user", content: msgContent }]
       })
     })
-    .then(function(res) { return res.json(); })
+    .then(readApiJson)
     .then(function(data) {
       postLoading.style.display = "none";
       postGenBtn.disabled = false;
@@ -2481,7 +2547,7 @@
   loadSettings();
   renderFavorites();
   loadVoiceCorpus();
-  renderGallery();
+  galleryPurgeLegacy().then(renderGallery);
   render();
 })();
 </script>
