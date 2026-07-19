@@ -1517,7 +1517,7 @@
     });
   }
 
-  function generateQuotes(refineHint) {
+  function generateQuotes(refineHint, isRetry) {
     lastGenKind = "random";
     aiGenerateBtn.disabled = true;
     aiVisionBtn.disabled = true;
@@ -1610,24 +1610,26 @@
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 3000,
-        messages: [{ role: "user", content: prompt }]
+        // prefill「[」強制模型從 JSON 陣列第一個字元接續，杜絕先寫草稿導致截斷
+        messages: [{ role: "user", content: prompt }, { role: "assistant", content: "[" }]
       })
     })
     .then(readApiJson)
     .then(function(data) {
-      aiLoading.style.display = "none";
-      aiGenerateBtn.disabled = false;
-      aiVisionBtn.disabled = false;
       var text = "";
       for (var c = 0; c < data.content.length; c++) {
         if (data.content[c].type === "text") text += data.content[c].text;
       }
-      var quotes = parseQuotesLoose(text);
+      var quotes = parseQuotesLoose("[" + text);
+      aiLoading.style.display = "none";
+      aiGenerateBtn.disabled = false;
+      aiVisionBtn.disabled = false;
       for (var q = 0; q < quotes.length; q++) { quoteList.appendChild(makeQuoteCard(quotes[q], "gold")); }
       recordShownQuotes(currentBrand, quotes);
       if (refineRow) refineRow.style.display = "flex";
     })
     .catch(function(err) {
+      if (!isRetry) { generateQuotes(refineHint, true); return; } // 偶發格式異常：自動重試一次
       aiLoading.style.display = "none";
       aiGenerateBtn.disabled = false;
       aiVisionBtn.disabled = false;
@@ -1637,7 +1639,7 @@
   aiGenerateBtn.addEventListener("click", function() { generateQuotes(null); });
 
   // --- 📷 看圖產生語錄 ---
-  function generateVisionQuotes(refineHint) {
+  function generateVisionQuotes(refineHint, isRetry) {
     if (!uploadedImgBase64) {
       alert("請先上傳照片，才能使用看圖產生語錄");
       return;
@@ -1728,27 +1730,30 @@
             { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
             { type: "text", text: visionPrompt }
           ]
-        }]
+        }, { role: "assistant", content: "[" }] // prefill 強制從 JSON 陣列接續
       })
     })
     .then(readApiJson)
     .then(function(data) {
+      var text = "";
+      for (var c = 0; c < data.content.length; c++) {
+        if (data.content[c].type === "text") text += data.content[c].text;
+      }
+      var quotes = parseQuotesLoose("[" + text);
       aiLoading.style.display = "none";
       for (var d2 = 0; d2 < loadingSpans.length; d2++) loadingSpans[d2].style.background = "var(--gold)";
       aiLoading.querySelector("span:last-child").textContent = "思考中";
       aiVisionBtn.disabled = false;
       aiGenerateBtn.disabled = false;
-      var text = "";
-      for (var c = 0; c < data.content.length; c++) {
-        if (data.content[c].type === "text") text += data.content[c].text;
-      }
-      var quotes = parseQuotesLoose(text);
       for (var q = 0; q < quotes.length; q++) { quoteList.appendChild(makeQuoteCard(quotes[q], "cyan")); }
       recordShownQuotes(currentBrand, quotes);
       if (refineRow) refineRow.style.display = "flex";
     })
     .catch(function(err) {
+      if (!isRetry) { generateVisionQuotes(refineHint, true); return; } // 偶發格式異常：自動重試一次
       aiLoading.style.display = "none";
+      for (var d3 = 0; d3 < loadingSpans.length; d3++) loadingSpans[d3].style.background = "var(--gold)";
+      aiLoading.querySelector("span:last-child").textContent = "思考中";
       aiVisionBtn.disabled = false;
       aiGenerateBtn.disabled = false;
       quoteList.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px;">看圖分析失敗，請重試。' + (err.message || '') + '</div>';
