@@ -1121,6 +1121,34 @@
   var uploadedImg = null;
   var uploadedImgBase64 = null;
 
+  // Worker 通行碼（對應 quote-proxy 的 APP_PASSCODE 環境變數）— 防止陌生人盜用 API 額度
+  var PASSCODE_KEY = "workerPasscode_v1";
+  var workerPasscode = "";
+  try { workerPasscode = localStorage.getItem(PASSCODE_KEY) || ""; } catch (e) {}
+  // 一鍵帶入：index.html#p=通行碼 → 存起來後清掉網址，書籤可長期使用
+  var pcMatch = location.hash.match(/[#&]p=([^&]+)/);
+  if (pcMatch) {
+    workerPasscode = decodeURIComponent(pcMatch[1]).trim();
+    try { localStorage.setItem(PASSCODE_KEY, workerPasscode); } catch (e) {}
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  function workerHeaders() {
+    if (!workerPasscode) {
+      var p = prompt("請輸入 Worker 通行碼（quote-proxy 的 APP_PASSCODE，輸入一次即記住）");
+      if (p && p.trim()) {
+        workerPasscode = p.trim();
+        try { localStorage.setItem(PASSCODE_KEY, workerPasscode); } catch (e) {}
+      }
+    }
+    var h = { "Content-Type": "application/json" };
+    if (workerPasscode) h["X-Passcode"] = workerPasscode;
+    return h;
+  }
+  function clearPasscode() {
+    workerPasscode = "";
+    try { localStorage.removeItem(PASSCODE_KEY); } catch (e) {}
+  }
+
   // 行動網路容易瞬斷（iOS 上顯示 Load failed）：網路層失敗自動重試一次
   function fetchWithRetry(url, options, retries) {
     retries = (retries == null) ? 1 : retries;
@@ -1134,7 +1162,12 @@
   function readApiJson(res) {
     return res.json().then(function(data) {
       if (data && data.type === "error") {
-        throw new Error((data.error && data.error.message) || "API 回傳錯誤");
+        var msg = (data.error && data.error.message) || "API 回傳錯誤";
+        if (/passcode/i.test(msg)) {
+          clearPasscode();
+          msg = "通行碼錯誤或未填 — 請再點一次生成，並輸入正確通行碼";
+        }
+        throw new Error(msg);
       }
       if (!data || !data.content || !data.content.length) {
         throw new Error("API 沒有回傳內容，請重試");
@@ -1645,7 +1678,7 @@
 
     fetchWithRetry(WORKER_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: workerHeaders(),
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 3000,
@@ -1756,7 +1789,7 @@
 
     fetchWithRetry(WORKER_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: workerHeaders(),
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 3000,
@@ -2558,7 +2591,7 @@
 
     fetchWithRetry(WORKER_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: workerHeaders(),
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 2000,
