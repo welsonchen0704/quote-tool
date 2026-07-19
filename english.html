@@ -520,10 +520,10 @@
     <div style="margin-top: 16px;">
       <div class="form-row">
         <label>Worker URL</label>
-        <input type="text" id="workerUrl" placeholder="https://english-notion.xxx.workers.dev" autocomplete="off">
+        <input type="text" id="workerUrl" placeholder="https://english-notion.welson-chen.workers.dev" autocomplete="off">
       </div>
       <div class="info-msg" style="grid-column: 2; margin-left: 122px;">
-        所有 API（Claude / OpenAI / Notion）皆透過你的 Cloudflare Worker。三把鑰匙 + Database ID 全部存在 Worker 的環境變數，瀏覽器永遠看不到。詳見 <a href="https://github.com/welsonchen0704/quote-tool/blob/main/notion-worker/README.md" target="_blank">notion-worker/README</a>。
+        已內建預設 Worker 網址，留空即可，不用填。所有 API（Claude / OpenAI / Notion）皆透過你的 Cloudflare Worker。三把鑰匙 + Database ID 全部存在 Worker 的環境變數，瀏覽器永遠看不到。詳見 <a href="https://github.com/welsonchen0704/quote-tool/blob/main/notion-worker/README.md" target="_blank">notion-worker/README</a>。
       </div>
       <div class="form-row" style="margin-top: 14px;">
         <label>模型</label>
@@ -629,9 +629,10 @@
 // ---------- State ----------
 const STORAGE_PREFIX = 'english-lesson-';
 const SETTINGS_KEY = 'english-settings';
+const DEFAULT_WORKER_URL = 'https://english-notion.welson-chen.workers.dev';
 
 const state = {
-  workerUrl: '',
+  workerUrl: DEFAULT_WORKER_URL,
   model: 'claude-opus-4-7',
   level: 'B1-B2',
   topic: '',
@@ -658,9 +659,9 @@ function formatDisplayDate(key) {
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-    // Migration: accept old notionWorkerUrl key
-    if (s.workerUrl) state.workerUrl = s.workerUrl;
-    else if (s.notionWorkerUrl) state.workerUrl = s.notionWorkerUrl;
+    // Migration: accept old notionWorkerUrl key; ignore placeholder junk (xxx.workers.dev)
+    const savedUrl = s.workerUrl || s.notionWorkerUrl || '';
+    if (savedUrl && !/\.xxx\.workers\.dev/i.test(savedUrl)) state.workerUrl = savedUrl;
     if (s.model) state.model = s.model;
     if (s.level) state.level = s.level;
     if (s.topic) state.topic = s.topic;
@@ -680,8 +681,7 @@ function saveSettings() {
 }
 
 function getWorkerUrl() {
-  let u = (state.workerUrl || '').trim();
-  if (!u) return '';
+  let u = (state.workerUrl || '').trim() || DEFAULT_WORKER_URL;
   if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
   return u.replace(/\/+$/, '');
 }
