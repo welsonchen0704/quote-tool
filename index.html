@@ -1164,6 +1164,45 @@
     if (out.length) return out;
     throw new Error("AI 回應格式不完整，請再試一次");
   }
+  // 強制工具呼叫：sonnet-5 不支援 assistant prefill，改用 tool_choice 逼模型輸出結構化 JSON
+  var QUOTE_TOOL = {
+    name: "submit_quotes",
+    description: "提交最終挑選的 5 組語錄",
+    input_schema: {
+      type: "object",
+      properties: {
+        quotes: {
+          type: "array",
+          description: "5 組語錄",
+          items: {
+            type: "object",
+            properties: {
+              main: { type: "string", description: "主標，多行時行與行之間用換行字元" },
+              sub: { type: "string", description: "副標，多行時行與行之間用換行字元" },
+              why: { type: "string", description: "12 字以內點出打中的情緒或痛點" }
+            },
+            required: ["main", "sub", "why"]
+          }
+        }
+      },
+      required: ["quotes"]
+    }
+  };
+  // 從回應取出語錄：優先讀 tool_use 的結構化 input，沒有才退回文字解析
+  function extractQuotes(data) {
+    for (var c = 0; c < data.content.length; c++) {
+      var blk = data.content[c];
+      if (blk.type === "tool_use" && blk.input && blk.input.quotes && blk.input.quotes.length) {
+        var ok = blk.input.quotes.filter(function(q) { return q && q.main && q.sub; });
+        if (ok.length) return ok;
+      }
+    }
+    var text = "";
+    for (var t = 0; t < data.content.length; t++) {
+      if (data.content[t].type === "text") text += data.content[t].text;
+    }
+    return parseQuotesLoose(text);
+  }
   var FONT = '"Noto Serif TC","PingFang TC","Microsoft JhengHei","Heiti TC",sans-serif';
 
   // --- Presets ---
@@ -1610,17 +1649,14 @@
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 3000,
-        // prefill「[」強制模型從 JSON 陣列第一個字元接續，杜絕先寫草稿導致截斷
-        messages: [{ role: "user", content: prompt }, { role: "assistant", content: "[" }]
+        tools: [QUOTE_TOOL],
+        tool_choice: { type: "tool", name: "submit_quotes" },
+        messages: [{ role: "user", content: prompt }]
       })
     })
     .then(readApiJson)
     .then(function(data) {
-      var text = "";
-      for (var c = 0; c < data.content.length; c++) {
-        if (data.content[c].type === "text") text += data.content[c].text;
-      }
-      var quotes = parseQuotesLoose("[" + text);
+      var quotes = extractQuotes(data);
       aiLoading.style.display = "none";
       aiGenerateBtn.disabled = false;
       aiVisionBtn.disabled = false;
@@ -1724,22 +1760,20 @@
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 3000,
+        tools: [QUOTE_TOOL],
+        tool_choice: { type: "tool", name: "submit_quotes" },
         messages: [{
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
             { type: "text", text: visionPrompt }
           ]
-        }, { role: "assistant", content: "[" }] // prefill 強制從 JSON 陣列接續
+        }]
       })
     })
     .then(readApiJson)
     .then(function(data) {
-      var text = "";
-      for (var c = 0; c < data.content.length; c++) {
-        if (data.content[c].type === "text") text += data.content[c].text;
-      }
-      var quotes = parseQuotesLoose("[" + text);
+      var quotes = extractQuotes(data);
       aiLoading.style.display = "none";
       for (var d2 = 0; d2 < loadingSpans.length; d2++) loadingSpans[d2].style.background = "var(--gold)";
       aiLoading.querySelector("span:last-child").textContent = "思考中";
