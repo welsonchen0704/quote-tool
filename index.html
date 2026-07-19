@@ -1737,9 +1737,14 @@
   // --- 一鍵分享（Web Share API，支援的裝置才顯示按鈕） ---
   var shareBtn = document.getElementById("shareBtn");
   shareBtn.addEventListener("click", function() {
+    // 同步呼叫 share（iOS Safari 手勢授權不能跨非同步）
+    if (lastShareFile && navigator.canShare && navigator.canShare({ files: [lastShareFile] })) {
+      navigator.share({ files: [lastShareFile], title: "瘋大叔語錄", text: mainTextEl.value.replace(/\n/g, " ") }).catch(function() {});
+      return;
+    }
     if (!outputImg.src) return;
     fetch(outputImg.src).then(function(r) { return r.blob(); }).then(function(blob) {
-      var fname = (fileNameEl.value.trim() || "瘋大叔語錄") + (blob.type === "image/jpeg" ? ".jpg" : ".png");
+      var fname = shareFileName(blob);
       var file = new File([blob], fname, { type: blob.type || "image/png" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         return navigator.share({ files: [file], title: "瘋大叔語錄", text: mainTextEl.value.replace(/\n/g, " ") });
@@ -2269,12 +2274,29 @@
   }
   var galleryURLs = [];
   var appliedGalleryURL = null;
+  // 預先備好的分享檔：iOS Safari 的 share() 必須在點擊當下同步呼叫，不能先等 fetch/toBlob
+  var lastShareFile = null;
+  function shareFileName(blob) {
+    return (fileNameEl.value.trim() || "瘋大叔語錄") + (((blob && blob.type) || "").indexOf("jpeg") >= 0 ? ".jpg" : ".png");
+  }
+  function copyTextLegacy(text) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      return true;
+    } catch (e) { return false; }
+  }
   function applyGalleryItem(rec) {
     var b = recBlob(rec);
     if (!b) return;
     if (appliedGalleryURL) { try { URL.revokeObjectURL(appliedGalleryURL); } catch (e) {} }
     appliedGalleryURL = URL.createObjectURL(b);
     outputImg.src = appliedGalleryURL;
+    try { lastShareFile = new File([b], shareFileName(b), { type: b.type || "image/jpeg" }); } catch (e) {}
     saveArea.style.display = "block";
     shareBtn.style.display = (navigator.canShare ? "flex" : "none");
     if (rec.post) {
@@ -2341,6 +2363,7 @@
       lastGallerySave = new Promise(function(resolve) {
         canvas.toBlob(function(blob) {
           if (!blob) return resolve();
+          try { lastShareFile = new File([blob], shareFileName(blob), { type: blob.type || "image/jpeg" }); } catch (e) {}
           blobToBuf(blob).then(function(buf) {
             return galleryAdd({ id: recId, brand: currentBrand, main: (mainTextEl.value.split("\n")[0] || "").trim(), post: "", mime: blob.type || "image/jpeg", buf: buf });
           }).then(function() { renderGallery(); resolve(); })
@@ -2505,23 +2528,45 @@
     doGeneratePost();
   });
 
-  // --- 📤 分享圖＋文：Web Share 同時帶圖片檔與貼文文字；先複製貼文防目標 app 掉字 ---
+  // --- 📤 分享圖＋文：Web Share 同時帶圖片檔與貼文文字 ---
+  // iOS Safari 一次點擊只授權一次敏感操作，且 share() 必須同步呼叫：
+  // 不能先寫剪貼簿、也不能先 fetch 圖，否則分享面板打不開（NotAllowedError 被吞掉）
   sharePostBtn.addEventListener("click", function() {
-    if (!outputImg.src) { alert("請先產生圖片"); return; }
     var text = postContent.textContent;
-    try { if (navigator.clipboard) navigator.clipboard.writeText(text).catch(function() {}); } catch (e) {}
-    fetch(outputImg.src).then(function(r) { return r.blob(); }).then(function(blob) {
-      var fname = (fileNameEl.value.trim() || "瘋大叔語錄") + (blob.type === "image/jpeg" ? ".jpg" : ".png");
-      var file = new File([blob], fname, { type: blob.type || "image/png" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        sharePostBtn.textContent = "✅ 貼文已複製備用";
-        setTimeout(function() { sharePostBtn.textContent = "📤 分享圖＋文"; }, 2500);
-        return navigator.share({ files: [file], text: text });
-      }
+    if (lastShareFile && navigator.canShare && navigator.canShare({ files: [lastShareFile] })) {
+      navigator.share({ files: [lastShareFile], text: text })
+        .then(function() {
+          sharePostBtn.textContent = "✅ 已分享（文字沒帶上就按複製貼文）";
+          setTimeout(function() { sharePostBtn.textContent = "📤 分享圖＋文"; }, 3000);
+        })
+        .catch(function(err) {
+          if (err && err.name === "AbortError") return; // 使用者自己關掉分享面板
+          copyTextLegacy(text);
+          alert("分享面板開啟失敗，已先複製貼文；圖片請長按上方預覽儲存");
+        });
+      return;
+    }
+    if (navigator.canShare && outputImg.src) {
+      // 分享檔尚未備好（極少見）：現抓現分享，部分瀏覽器可能因手勢過期失敗
+      fetch(outputImg.src).then(function(r) { return r.blob(); }).then(function(blob) {
+        lastShareFile = new File([blob], shareFileName(blob), { type: blob.type || "image/png" });
+        return navigator.share({ files: [lastShareFile], text: text });
+      }).catch(function(err) {
+        if (err && err.name === "AbortError") return;
+        copyTextLegacy(text);
+        alert("分享面板開啟失敗，已先複製貼文；圖片請長按上方預覽儲存");
+      });
+      return;
+    }
+    // 不支援檔案分享的環境：複製文字＋下載圖
+    copyTextLegacy(text);
+    if (outputImg.src) {
       var a = document.createElement("a");
-      a.download = fname; a.href = outputImg.src; a.click();
-      alert("此裝置不支援一鍵分享：圖已下載、貼文已複製，直接貼上即可");
-    }).catch(function() {});
+      a.download = (fileNameEl.value.trim() || "瘋大叔語錄") + ".png";
+      a.href = outputImg.src;
+      a.click();
+    }
+    alert("此環境不支援一鍵分享：貼文已複製、圖已觸發下載，到 app 貼上即可");
   });
 
   // --- 複製貼文 ---
