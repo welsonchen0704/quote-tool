@@ -526,6 +526,13 @@
         已內建預設 Worker 網址，留空即可，不用填。所有 API（Claude / OpenAI / Notion）皆透過你的 Cloudflare Worker。三把鑰匙 + Database ID 全部存在 Worker 的環境變數，瀏覽器永遠看不到。詳見 <a href="https://github.com/welsonchen0704/quote-tool/blob/main/notion-worker/README.md" target="_blank">notion-worker/README</a>。
       </div>
       <div class="form-row" style="margin-top: 14px;">
+        <label>通行碼</label>
+        <input type="password" id="passcode" placeholder="Worker 的 APP_PASSCODE" autocomplete="off">
+      </div>
+      <div class="info-msg" style="grid-column: 2; margin-left: 122px;">
+        對應 Worker 環境變數 <code>APP_PASSCODE</code>，防止陌生人盜用你的 API 額度。輸入一次即記住。
+      </div>
+      <div class="form-row" style="margin-top: 14px;">
         <label>模型</label>
         <div class="model-group" id="modelGroup">
           <button class="pill active" data-model="claude-opus-4-7">Opus 4.7 (最強)</button>
@@ -633,6 +640,7 @@ const DEFAULT_WORKER_URL = 'https://english-notion.welson-chen.workers.dev';
 
 const state = {
   workerUrl: DEFAULT_WORKER_URL,
+  passcode: '',
   model: 'claude-opus-4-7',
   level: 'B1-B2',
   topic: '',
@@ -662,6 +670,7 @@ function loadSettings() {
     // Migration: accept old notionWorkerUrl key; ignore placeholder junk (xxx.workers.dev)
     const savedUrl = s.workerUrl || s.notionWorkerUrl || '';
     if (savedUrl && !/\.xxx\.workers\.dev/i.test(savedUrl)) state.workerUrl = savedUrl;
+    if (s.passcode) state.passcode = s.passcode;
     if (s.model) state.model = s.model;
     if (s.level) state.level = s.level;
     if (s.topic) state.topic = s.topic;
@@ -672,6 +681,7 @@ function loadSettings() {
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({
     workerUrl: state.workerUrl,
+    passcode: state.passcode,
     model: state.model,
     level: state.level,
     topic: state.topic,
@@ -684,6 +694,12 @@ function getWorkerUrl() {
   let u = (state.workerUrl || '').trim() || DEFAULT_WORKER_URL;
   if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
   return u.replace(/\/+$/, '');
+}
+function workerHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  const p = (state.passcode || '').trim();
+  if (p) h['X-Passcode'] = p;
+  return h;
 }
 function loadLesson(dateKey) {
   try {
@@ -827,7 +843,7 @@ ${avoidLine}
 
   const resp = await fetch(workerUrl + '/claude/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: workerHeaders(),
     body: JSON.stringify(body),
   });
 
@@ -837,6 +853,10 @@ ${avoidLine}
       const errJson = await resp.json();
       if (errJson.error && errJson.error.message) errMsg = errJson.error.message;
     } catch (e) {}
+    if (resp.status === 401) {
+      errMsg = '通行碼錯誤或未填 — 請在「設定」中輸入通行碼';
+      $('settingsCard').open = true;
+    }
     throw new Error(errMsg);
   }
 
@@ -1018,7 +1038,7 @@ async function syncToNotion(dateKey, lesson) {
 
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: workerHeaders(),
     body: JSON.stringify(payload),
   });
   if (!resp.ok) {
@@ -1161,7 +1181,7 @@ async function fetchOpenAITTS(text, voice, model) {
   if (!workerUrl) throw new Error('請先在「設定」中填入 Worker URL');
   const resp = await fetch(workerUrl + '/openai/audio/speech', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: workerHeaders(),
     body: JSON.stringify({ model, input: text, voice, response_format: 'mp3' }),
   });
   if (!resp.ok) {
@@ -1225,6 +1245,12 @@ function bindEvents() {
   // Worker URL (the only credential the browser needs to know)
   $('workerUrl').addEventListener('input', (e) => {
     state.workerUrl = e.target.value.trim();
+    saveSettings();
+  });
+
+  // Passcode (matches the Worker's APP_PASSCODE env var)
+  $('passcode').addEventListener('input', (e) => {
+    state.passcode = e.target.value.trim();
     saveSettings();
   });
 
@@ -1343,7 +1369,18 @@ function bindEvents() {
 function init() {
   $('todayDate').textContent = formatDisplayDate(todayKey());
   loadSettings();
+
+  // One-tap provisioning: opening english.html#p=<passcode> stores the
+  // passcode and cleans the URL, so a bookmarked link survives cleared storage.
+  const hashMatch = location.hash.match(/[#&]p=([^&]+)/);
+  if (hashMatch) {
+    state.passcode = decodeURIComponent(hashMatch[1]).trim();
+    saveSettings();
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
   $('workerUrl').value = state.workerUrl;
+  $('passcode').value = state.passcode;
   $('topic').value = state.topic;
   $('openaiVoice').value = state.openaiVoice;
   document.querySelectorAll('#modelGroup .pill').forEach(b => {
