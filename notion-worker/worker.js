@@ -13,6 +13,9 @@
 //   OPENAI_API_KEY      = sk-... (Secret)
 //   NOTION_TOKEN        = ntn_... (Secret)
 //   NOTION_DATABASE_ID  = your database id (Text)
+//   APP_PASSCODE        = your chosen passcode (Secret) — requests must send it
+//                         in the X-Passcode header; without this var the Worker
+//                         is open to anyone who knows its URL
 
 const ANTHROPIC_API = 'https://api.anthropic.com/v1';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -30,6 +33,14 @@ export default {
 
     if (!env.ALLOWED_ORIGIN || origin !== env.ALLOWED_ORIGIN) {
       return new Response('Forbidden: bad origin', { status: 403 });
+    }
+
+    // Passcode gate — the Worker URL is published in the public page source,
+    // so the Origin check alone only stops other websites, not direct callers.
+    if (env.APP_PASSCODE) {
+      if ((request.headers.get('X-Passcode') || '') !== env.APP_PASSCODE) {
+        return jsonError('Unauthorized: bad passcode', 401, origin, env);
+      }
     }
 
     const url = new URL(request.url);
@@ -145,7 +156,7 @@ function corsHeaders(origin, env) {
   return {
     'Access-Control-Allow-Origin': allow,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Passcode',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
   };

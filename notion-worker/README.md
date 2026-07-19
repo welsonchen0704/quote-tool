@@ -34,7 +34,7 @@
 1. https://dash.cloudflare.com → **Workers & Pages → Create → Create Worker**
 2. 名稱 `english-notion`（或你喜歡的）→ Deploy
 3. **Edit code** → 全部刪除 → 貼上 [`worker.js`](./worker.js) 內容 → **Deploy**
-4. 回 Worker 主頁 → **Settings → Variables and Secrets → Add**，加 **5 個變數**：
+4. 回 Worker 主頁 → **Settings → Variables and Secrets → Add**，加 **6 個變數**：
 
 | Variable name | Value | Type |
 |---|---|---|
@@ -43,6 +43,7 @@
 | `OPENAI_API_KEY` | `sk-...` | **Secret** |
 | `NOTION_TOKEN` | `ntn_...` | **Secret** |
 | `NOTION_DATABASE_ID` | 第 2 步的 32 字元 ID | Text |
+| `APP_PASSCODE` | 自訂通行碼（6–12 碼，只有你知道） | **Secret** |
 
 5. **務必按 Save and deploy** — 環境變數要重新部署才生效
 
@@ -52,19 +53,20 @@
 
 | 欄位 | 值 |
 |---|---|
-| Worker URL | 上面 Cloudflare 給你的 `https://english-notion.<your-subdomain>.workers.dev` |
+| Worker URL | 已內建預設值，留空即可（要換 Worker 才需要填） |
+| 通行碼 | 你在第 3 步設定的 `APP_PASSCODE`，輸入一次即記住 |
 
-**就這一個欄位**。所有 API 金鑰都在 Worker 端。
+所有 API 金鑰都在 Worker 端。懶人提示：開 `english.html#p=你的通行碼` 會自動存入通行碼並清掉網址，把這個連結加入書籤／主畫面，就算瀏覽器資料被清也不用重打。
 
 ---
 
 ## 安全模型
 
 - 三家 API 金鑰只存在 Cloudflare 加密 secret 變數，瀏覽器永遠看不到、localStorage 也沒有
-- Origin 驗證只放行你的 GitHub Pages 網域
+- Origin 驗證只放行你的 GitHub Pages 網域（擋掉其他網站從瀏覽器盜連）
+- **通行碼驗證**：Worker URL 寫在公開頁面原始碼裡，所以另設 `APP_PASSCODE` — 每個請求都要帶 `X-Passcode` header，不對就回 401。通行碼只存在你自己裝置的 localStorage，不在 repo 裡
 - Worker 程式碼有端點白名單（不接其他亂 path）
-- 萬一 Worker URL 流出，攻擊者要呼叫到 API 還需要繞過 Origin 檢查（curl 可以、一般人不會）
-- 真要更安全的話可以再加 passcode header
+- 注意：`APP_PASSCODE` 沒設的話 Worker 就只剩 Origin 檢查（curl 可偽造），等於任何知道網址的人都能用 — **務必設定**
 
 ---
 
@@ -83,6 +85,8 @@
 | 錯誤訊息 | 原因 |
 |---|---|
 | `Forbidden: bad origin` | `ALLOWED_ORIGIN` 沒設或設錯（要剛好 `https://welsonchen0704.github.io`） |
+| `Unauthorized: bad passcode`（401） | app 設定裡的通行碼與 Worker 的 `APP_PASSCODE` 不一致，或沒填 |
+| 改了 `worker.js` 沒生效 | Worker 程式碼不會自動同步 — 要回 Cloudflare **Edit code** 重新貼上並 Deploy |
 | `ANTHROPIC_API_KEY not configured on Worker` | Cloudflare 沒加 `ANTHROPIC_API_KEY` 環境變數，或加完沒 Deploy |
 | `OPENAI_API_KEY not configured on Worker` | 同上，加 `OPENAI_API_KEY` |
 | `NOTION_TOKEN not configured on Worker` | 同上，加 `NOTION_TOKEN` |
