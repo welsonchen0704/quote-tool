@@ -658,6 +658,29 @@
   .post-content::-webkit-scrollbar-track { background: transparent; }
   .post-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+  /* Gallery（最近的成品） */
+  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .gallery-item {
+    position: relative;
+    border: 1px solid var(--border-dim);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--bg-card);
+    transition: border-color 0.15s;
+  }
+  .gallery-item:hover { border-color: var(--gold-dim); }
+  .gallery-item img { width: 100%; display: block; }
+  .gallery-del {
+    position: absolute; top: 4px; right: 4px;
+    width: 20px; height: 20px;
+    border: none; border-radius: 50%;
+    background: rgba(0,0,0,0.55); color: #ddd;
+    font-size: 11px; line-height: 1;
+    cursor: pointer;
+  }
+  .gallery-del:hover { background: rgba(196,64,64,0.8); color: #fff; }
+
   /* Spacer between form fields */
   .field-gap { height: 8px; }
 
@@ -1000,6 +1023,8 @@
       <div class="field-gap"></div>
       <button class="btn-generate" id="generateBtn">產 生 圖 片</button>
       <div class="field-gap"></div>
+      <button class="btn-ai btn-ai-orange" id="comboBtn">⚡ 產生圖片＋貼文</button>
+      <div class="field-gap"></div>
       <button class="btn-ai btn-ai-orange" id="postGenBtn" style="display:none;">📝 產生社群貼文</button>
       <div id="postLoading" class="ai-loading ai-loading-orange" style="display:none;">
         <span class="loading-dot" style="background:var(--orange)"></span>
@@ -1010,10 +1035,23 @@
       <div id="postResult" class="post-result-wrap">
         <div class="post-result-header">
           <span class="post-result-label">社群貼文</span>
-          <button class="btn-copy" id="copyPostBtn">📋 複製貼文</button>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-copy" id="sharePostBtn" style="display:none;">📤 分享圖＋文</button>
+            <button class="btn-copy" id="copyPostBtn">📋 複製貼文</button>
+          </div>
         </div>
         <div class="post-content" id="postContent"></div>
       </div>
+    </div>
+
+    <!-- 最近的成品 -->
+    <div class="panel-section" data-mtab="output" id="gallerySection" style="display:none;">
+      <div class="section-header">
+        <span class="section-icon dim"></span>
+        <span class="section-title">最近的成品</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text-dim);letter-spacing:0.5px;">點縮圖可重新分享．存最近 10 張</span>
+      </div>
+      <div id="galleryGrid" class="gallery-grid"></div>
     </div>
 
   </div>
@@ -1665,8 +1703,8 @@
   shareBtn.addEventListener("click", function() {
     if (!outputImg.src) return;
     fetch(outputImg.src).then(function(r) { return r.blob(); }).then(function(blob) {
-      var fname = (fileNameEl.value.trim() || "瘋大叔語錄") + ".png";
-      var file = new File([blob], fname, { type: "image/png" });
+      var fname = (fileNameEl.value.trim() || "瘋大叔語錄") + (blob.type === "image/jpeg" ? ".jpg" : ".png");
+      var file = new File([blob], fname, { type: blob.type || "image/png" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         return navigator.share({ files: [file], title: "瘋大叔語錄", text: mainTextEl.value.replace(/\n/g, " ") });
       }
@@ -2106,9 +2144,119 @@
   var copyPostBtn = document.getElementById("copyPostBtn");
   var contextInput = document.getElementById("contextInput");
   contextInput.addEventListener("input", updateGenerateBtnLabel);
+  var comboBtn = document.getElementById("comboBtn");
+  var sharePostBtn = document.getElementById("sharePostBtn");
 
-  generateBtn.addEventListener("click", function() {
-    if (!uploadedImg) { alert("請先上傳照片"); return; }
+  // ===== 最近的成品：IndexedDB 存最近 10 張輸出（Blob），臨時重發不用重做 =====
+  var GALLERY_LIMIT = 10;
+  var galleryDB = null;
+  var lastGalleryId = null;
+  var lastGallerySave = Promise.resolve();
+  function galleryOpen() {
+    return new Promise(function(resolve, reject) {
+      if (galleryDB) return resolve(galleryDB);
+      if (!window.indexedDB) return reject(new Error("no idb"));
+      var req = indexedDB.open("fengQuoteGallery_v1", 1);
+      req.onupgradeneeded = function() {
+        var db = req.result;
+        if (!db.objectStoreNames.contains("imgs")) db.createObjectStore("imgs", { keyPath: "id" });
+      };
+      req.onsuccess = function() { galleryDB = req.result; resolve(galleryDB); };
+      req.onerror = function() { reject(req.error); };
+    });
+  }
+  function galleryTx(mode, fn) {
+    return galleryOpen().then(function(db) {
+      return new Promise(function(resolve, reject) {
+        var tx = db.transaction("imgs", mode);
+        var out = fn(tx.objectStore("imgs"));
+        tx.oncomplete = function() { resolve(out ? out.result : undefined); };
+        tx.onerror = function() { reject(tx.error); };
+      });
+    });
+  }
+  function galleryAll() {
+    return galleryTx("readonly", function(s) { return s.getAll(); }).then(function(list) {
+      list = list || [];
+      list.sort(function(a, b) { return b.id - a.id; });
+      return list;
+    }).catch(function() { return []; });
+  }
+  function galleryAdd(rec) {
+    return galleryTx("readwrite", function(s) { s.put(rec); })
+      .then(galleryAll)
+      .then(function(list) {
+        var extra = list.slice(GALLERY_LIMIT);
+        if (!extra.length) return;
+        return galleryTx("readwrite", function(s) {
+          for (var i = 0; i < extra.length; i++) s.delete(extra[i].id);
+        });
+      }).catch(function() {});
+  }
+  function galleryDelete(id) {
+    return galleryTx("readwrite", function(s) { s.delete(id); }).catch(function() {});
+  }
+  function galleryUpdate(id, patch) {
+    return galleryTx("readwrite", function(s) {
+      var g = s.get(id);
+      g.onsuccess = function() {
+        var rec = g.result;
+        if (!rec) return;
+        for (var k in patch) rec[k] = patch[k];
+        s.put(rec);
+      };
+    }).catch(function() {});
+  }
+  var galleryURLs = [];
+  var appliedGalleryURL = null;
+  function applyGalleryItem(rec) {
+    if (appliedGalleryURL) { try { URL.revokeObjectURL(appliedGalleryURL); } catch (e) {} }
+    appliedGalleryURL = URL.createObjectURL(rec.blob);
+    outputImg.src = appliedGalleryURL;
+    saveArea.style.display = "block";
+    shareBtn.style.display = (navigator.canShare ? "flex" : "none");
+    if (rec.post) {
+      postContent.textContent = rec.post;
+      postResult.style.display = "block";
+      if (sharePostBtn) sharePostBtn.style.display = (navigator.canShare ? "inline-block" : "none");
+    }
+    setTimeout(function() { saveArea.scrollIntoView({ behavior: "smooth", block: "center" }); }, 80);
+  }
+  function renderGallery() {
+    var grid = document.getElementById("galleryGrid");
+    var section = document.getElementById("gallerySection");
+    if (!grid || !section) return;
+    galleryAll().then(function(list) {
+      for (var i = 0; i < galleryURLs.length; i++) { try { URL.revokeObjectURL(galleryURLs[i]); } catch (e) {} }
+      galleryURLs = [];
+      grid.innerHTML = "";
+      section.style.display = list.length ? "block" : "none";
+      list.forEach(function(rec) {
+        var item = document.createElement("div");
+        item.className = "gallery-item";
+        var img = document.createElement("img");
+        var u = URL.createObjectURL(rec.blob);
+        galleryURLs.push(u);
+        img.src = u;
+        img.alt = rec.main || "語錄圖";
+        item.title = rec.main || "";
+        item.appendChild(img);
+        var del = document.createElement("button");
+        del.className = "gallery-del";
+        del.type = "button";
+        del.textContent = "✕";
+        del.title = "刪除這張";
+        del.addEventListener("click", function(e) { e.stopPropagation(); galleryDelete(rec.id).then(renderGallery); });
+        item.appendChild(del);
+        item.addEventListener("click", function() { applyGalleryItem(rec); });
+        grid.appendChild(item);
+      });
+    });
+  }
+
+  function doGenerateImage(opts) {
+    opts = opts || {};
+    if (!uploadedImg) { alert("請先上傳照片"); return false; }
     var dataUrl = canvas.toDataURL("image/png");
     outputImg.src = dataUrl;
     saveArea.style.display = "block";
@@ -2121,13 +2269,30 @@
       link.href = dataUrl;
       link.click();
     } catch(e) {}
-    setTimeout(function() {
-      saveArea.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 100);
-  });
+    // 存進最近的成品（JPEG 壓體積；IndexedDB 不支援就靜默略過）
+    // lastGallerySave 串起「存圖→補寫貼文」順序，避免貼文比 toBlob 先完成時寫不進記錄
+    try {
+      var recId = Date.now();
+      lastGalleryId = recId;
+      lastGallerySave = new Promise(function(resolve) {
+        canvas.toBlob(function(blob) {
+          if (!blob) return resolve();
+          galleryAdd({ id: recId, brand: currentBrand, main: (mainTextEl.value.split("\n")[0] || "").trim(), post: "", blob: blob })
+            .then(function() { renderGallery(); resolve(); });
+        }, "image/jpeg", 0.9);
+      });
+    } catch(e) {}
+    if (!opts.noScroll) {
+      setTimeout(function() {
+        saveArea.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
+    return true;
+  }
+  generateBtn.addEventListener("click", function() { doGenerateImage(); });
 
   // --- 📝 產生貼文 ---
-  postGenBtn.addEventListener("click", function() {
+  function doGeneratePost() {
     var mainT = mainTextEl.value.trim();
     var subT = subTextEl.value.trim();
     var ctxT = (contextInput && contextInput.value) ? contextInput.value.trim() : "";
@@ -2250,6 +2415,11 @@
       }
       postContent.textContent = text.trim();
       postResult.style.display = "block";
+      if (sharePostBtn) sharePostBtn.style.display = (navigator.canShare ? "inline-block" : "none");
+      if (lastGalleryId) {
+        var postText = text.trim();
+        lastGallerySave.then(function() { return galleryUpdate(lastGalleryId, { post: postText }); }).then(renderGallery);
+      }
       setTimeout(function() {
         postResult.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 100);
@@ -2260,6 +2430,32 @@
       postContent.textContent = "貼文產生失敗：" + (err.message || "請重試");
       postResult.style.display = "block";
     });
+  }
+  postGenBtn.addEventListener("click", doGeneratePost);
+
+  // --- ⚡ 圖＋文一條龍：產生圖片後直接接著產生貼文 ---
+  comboBtn.addEventListener("click", function() {
+    if (!doGenerateImage({ noScroll: true })) return;
+    doGeneratePost();
+  });
+
+  // --- 📤 分享圖＋文：Web Share 同時帶圖片檔與貼文文字；先複製貼文防目標 app 掉字 ---
+  sharePostBtn.addEventListener("click", function() {
+    if (!outputImg.src) { alert("請先產生圖片"); return; }
+    var text = postContent.textContent;
+    try { if (navigator.clipboard) navigator.clipboard.writeText(text).catch(function() {}); } catch (e) {}
+    fetch(outputImg.src).then(function(r) { return r.blob(); }).then(function(blob) {
+      var fname = (fileNameEl.value.trim() || "瘋大叔語錄") + (blob.type === "image/jpeg" ? ".jpg" : ".png");
+      var file = new File([blob], fname, { type: blob.type || "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        sharePostBtn.textContent = "✅ 貼文已複製備用";
+        setTimeout(function() { sharePostBtn.textContent = "📤 分享圖＋文"; }, 2500);
+        return navigator.share({ files: [file], text: text });
+      }
+      var a = document.createElement("a");
+      a.download = fname; a.href = outputImg.src; a.click();
+      alert("此裝置不支援一鍵分享：圖已下載、貼文已複製，直接貼上即可");
+    }).catch(function() {});
   });
 
   // --- 複製貼文 ---
@@ -2285,6 +2481,7 @@
   loadSettings();
   renderFavorites();
   loadVoiceCorpus();
+  renderGallery();
   render();
 })();
 </script>
